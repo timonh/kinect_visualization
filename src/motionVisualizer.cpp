@@ -54,8 +54,8 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
 void MotionVisualizer::edgeDetectionImageCallback(
     const sensor_msgs::Image& imageEdgeDetection)
 {
-  ROS_INFO("Image encoding: %s", imageEdgeDetection.encoding.c_str());
-  ROS_INFO("200 entry data: %d", imageEdgeDetection.data[1000]);
+  //ROS_INFO("Image encoding: %s", imageEdgeDetection.encoding.c_str());
+  //ROS_INFO("200 entry data: %d", imageEdgeDetection.data[1000]);
 
   sensor_msgs::Image outputImage;
   outputImage.encoding = "rgba8";
@@ -66,7 +66,7 @@ void MotionVisualizer::edgeDetectionImageCallback(
   outputImage.header = imageEdgeDetection.header;
   outputImage.data.resize(4*imageEdgeDetection.data.size());
 
-  cout << typeid(imageEdgeDetection.data).name() << endl;
+  //cout << typeid(imageEdgeDetection.data).name() << endl;
 
   // Set number of considered images for blurring
   int historySize = 5;
@@ -98,9 +98,15 @@ void MotionVisualizer::edgeDetectionImageCallback(
       if (outputImage.data[4*i] <= 35) outputImage.data[4*i] = 0;
     }
 
+    //ROS_INFO("Filter gain up: %f", lpfGainUp_);
+    //ROS_INFO("Filter gain down: %f", this->lpfGainDown_);
+
 
     // Low pass filtering step.
-    double lpfGainUp = 0.2;
+    //double lpfGainUp = 0.2;
+    double lpfGainUp = lpfGainUp_;
+    bool firsttimer = true;
+    if (firsttimer) cout << "this is the firsttimer " << lpfGainUp << endl;
     double lpfGainDown = 0.4;
     if (lpfTrigger_) {
       // Red
@@ -120,20 +126,25 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
   }
 
-
-
-
   // Helper image for low pass filtering.
   outputImageTemp_ = outputImage;
   lpfTrigger_ = true;
 
   coloredImagePublisher_.publish(outputImage);
+}
 
+void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
+  ROS_INFO("Reconfigure Request: %f",
+            config.lpfGainUp);
+  lpfGainUp_ = config.lpfGainUp;
+  lpfGainDown_ = config.lpfGainDown;
 }
 
 
 MotionVisualizer::~MotionVisualizer()
 {
+
+  cout << "In destructor: " << this->lpfGainUp_ << endl;
 //  // New added to write data to file for learning.
 //  map_.writeDataFileForParameterLearning();
 
@@ -142,4 +153,3 @@ MotionVisualizer::~MotionVisualizer()
 //  nodeHandle_.shutdown();
 //  fusionServiceThread_.join();
 }
-

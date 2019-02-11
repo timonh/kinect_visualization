@@ -10,6 +10,8 @@
 #include "std_msgs/String.h"
 #include "sensor_msgs/Image.h"
 
+#include <dynamic_reconfigure/server.h>
+#include "simple_kinect_motion_visualizer/VisualizationConfig.h"
 
 class MotionVisualizer
 {
@@ -20,6 +22,12 @@ class MotionVisualizer
 
   // Destructor
   ~MotionVisualizer();
+
+  void drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level);
+
+  // Dynamic Reconfigure Parameters.
+  double lpfGainUp_;
+  double lpfGainDown_;
 
   private:
 
@@ -37,6 +45,8 @@ class MotionVisualizer
   sensor_msgs::Image outputImageTemp_;
   // Trigger for low pass filtering.
   bool lpfTrigger_;
+
+
 
 };
 

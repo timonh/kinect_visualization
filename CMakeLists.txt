@@ -4,6 +4,9 @@ project(simple_kinect_motion_visualizer)
 ## Compile as C++11, supported in ROS Kinetic and newer
 add_compile_options(-std=c++11)
 
+set(catkin_DIR "/opt/ros/kinetic/share/catkin/cmake")
+
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -11,7 +14,14 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  dynamic_reconfigure
 )
+
+generate_dynamic_reconfigure_options(
+  cfg/visualization_config.cfg
+  #...
+)
+
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -110,7 +120,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES simple_kinect_motion_visualizer
-  CATKIN_DEPENDS roscpp rospy std_msgs
+  CATKIN_DEPENDS roscpp rospy std_msgs dynamic_reconfigure
 # DEPENDS system_lib
 )
 
@@ -133,8 +143,12 @@ add_library(${PROJECT_NAME}_library
 )
 
 add_executable(
-motionVisualizerNode src/motionVisualizerNode.cpp
+  motionVisualizerNode src/motionVisualizerNode.cpp
 )
+
+#add_dependencies(motionVisualizerNode ${PROJECT_NAME}_gencfg)
+
+
 #add_executable(
 #motionVisualizer src/motionVisualizer.cpp
 #)
