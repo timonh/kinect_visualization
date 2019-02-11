@@ -26,6 +26,12 @@ class MotionVisualizer
   void drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level);
 
   // Dynamic Reconfigure Parameters.
+  double redHistorySize_;
+  double redGain_;
+  double redIntensityThreshold_;
+  double greenHistorySize_;
+  double greenGain_;
+  double greenIntensityThreshold_;
   double lpfGainUp_;
   double lpfGainDown_;
 

@@ -69,10 +69,8 @@ void MotionVisualizer::edgeDetectionImageCallback(
   //cout << typeid(imageEdgeDetection.data).name() << endl;
 
   // Set number of considered images for blurring
-  int historySize = 5;
-  if (edgeDetectionImageHistory.size() > historySize) edgeDetectionImageHistory.erase(edgeDetectionImageHistory.begin());
+  if (edgeDetectionImageHistory.size() > redHistorySize_) edgeDetectionImageHistory.erase(edgeDetectionImageHistory.begin());
   edgeDetectionImageHistory.push_back(imageEdgeDetection);
-
 
 
   for (unsigned int i = 0; i < imageEdgeDetection.data.size(); ++i){
@@ -85,17 +83,18 @@ void MotionVisualizer::edgeDetectionImageCallback(
       // TODO: check normalization
       totalDifference += fabs(edgeDetectionImageHistory[j].data[i] - edgeDetectionImageHistory[j+1].data[i]);
 
-      if(j<=3 && totalDifference >= 70){
-        outputImage.data[4*i+1] = fmin(255, 0.4 * totalDifference);
+      if(j<=greenHistorySize_ && totalDifference >= greenIntensityThreshold_){
+
+        outputImage.data[4*i+1] = fmin(255, greenGain_ * totalDifference);
         //outputImage.data[4*i+2] = fmin(255, 0.9 * totalDifference);
         //fast = true;
       }
 
     }
     if (!fast){
-      outputImage.data[4*i] = fmin(255, 0.9 * totalDifference);
-      if (totalDifference <= 35) outputImage.data[4*i] = 0;
-      if (outputImage.data[4*i] <= 35) outputImage.data[4*i] = 0;
+      outputImage.data[4*i] = fmin(255, redGain_ * totalDifference);
+      if (totalDifference <= redIntensityThreshold_) outputImage.data[4*i] = 0;
+      if (outputImage.data[4*i] <= redIntensityThreshold_) outputImage.data[4*i] = 0;
     }
 
     //ROS_INFO("Filter gain up: %f", lpfGainUp_);
@@ -105,9 +104,9 @@ void MotionVisualizer::edgeDetectionImageCallback(
     // Low pass filtering step.
     //double lpfGainUp = 0.2;
     double lpfGainUp = lpfGainUp_;
-    bool firsttimer = true;
-    if (firsttimer) cout << "this is the firsttimer " << lpfGainUp << endl;
-    double lpfGainDown = 0.4;
+
+    //double lpfGainDown = 0.4;
+    double lpfGainDown = lpfGainDown_;
     if (lpfTrigger_) {
       // Red
       if (outputImage.data[4*i] > outputImageTemp_.data[4*i])
@@ -136,6 +135,13 @@ void MotionVisualizer::edgeDetectionImageCallback(
 void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
   ROS_INFO("Reconfigure Request: %f",
             config.lpfGainUp);
+
+  redHistorySize_ = config.redHistorySize;
+  redGain_ = config.redGain;
+  redIntensityThreshold_ = config.redIntensityThreshold;
+  greenHistorySize_ = config.greenHistorySize;
+  greenGain_ = config.greenGain;
+  greenIntensityThreshold_ = config.greenIntensityThreshold;
   lpfGainUp_ = config.lpfGainUp;
   lpfGainDown_ = config.lpfGainDown;
 }
@@ -144,7 +150,7 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
 MotionVisualizer::~MotionVisualizer()
 {
 
-  cout << "In destructor: " << this->lpfGainUp_ << endl;
+  //cout << "In destructor: " << this->lpfGainUp_ << endl;
 //  // New added to write data to file for learning.
 //  map_.writeDataFileForParameterLearning();
 

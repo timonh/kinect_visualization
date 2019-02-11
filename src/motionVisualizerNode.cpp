@@ -16,12 +16,12 @@
 #include "simple_kinect_motion_visualizer/motionVisualizer.hpp"
 
 
-void drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level, MotionVisualizer &motionVisualizerObj) {
-  ROS_INFO("Reconfigure Request: %f",
-            config.lpfGainUp);
-  motionVisualizerObj.lpfGainUp_ = config.lpfGainUp;
-  motionVisualizerObj.lpfGainDown_ = config.lpfGainDown;
-}
+//void drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level, MotionVisualizer &motionVisualizerObj) {
+//  ROS_INFO("Reconfigure Request: %f",
+//            config.lpfGainUp);
+//  motionVisualizerObj.lpfGainUp_ = config.lpfGainUp;
+//  motionVisualizerObj.lpfGainDown_ = config.lpfGainDown;
+//}
 
 int main(int argc, char** argv)
 {
