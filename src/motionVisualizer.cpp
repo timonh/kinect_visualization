@@ -83,11 +83,14 @@ void MotionVisualizer::edgeDetectionImageCallback(
       // TODO: check normalization
       totalDifference += fabs(edgeDetectionImageHistory[j].data[i] - edgeDetectionImageHistory[j+1].data[i]);
 
-      if(j<=greenHistorySize_ && totalDifference >= greenIntensityThreshold_){
 
+      if(j <= greenHistorySize_ && totalDifference >= greenIntensityThreshold_){
         outputImage.data[4*i+1] = fmin(255, greenGain_ * totalDifference);
+      }
         //outputImage.data[4*i+2] = fmin(255, 0.9 * totalDifference);
         //fast = true;
+      if(j <= blueHistorySize_ && totalDifference >= blueIntensityThreshold_){
+        outputImage.data[4*i+2] = fmin(255, blueGain_ * totalDifference);
       }
 
     }
@@ -95,6 +98,9 @@ void MotionVisualizer::edgeDetectionImageCallback(
       outputImage.data[4*i] = fmin(255, redGain_ * totalDifference);
       if (totalDifference <= redIntensityThreshold_) outputImage.data[4*i] = 0;
       if (outputImage.data[4*i] <= redIntensityThreshold_) outputImage.data[4*i] = 0;
+
+      if (totalDifference <= blueIntensityThreshold_) outputImage.data[4*i+2] = 0;
+      if (outputImage.data[4*i+2] <= blueIntensityThreshold_) outputImage.data[4*i+2] = 0;
     }
 
     //ROS_INFO("Filter gain up: %f", lpfGainUp_);
@@ -142,6 +148,9 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
   greenHistorySize_ = config.greenHistorySize;
   greenGain_ = config.greenGain;
   greenIntensityThreshold_ = config.greenIntensityThreshold;
+  blueHistorySize_ = config.blueHistorySize;
+  blueGain_ = config.blueGain;
+  blueIntensityThreshold_ = config.blueIntensityThreshold;
   lpfGainUp_ = config.lpfGainUp;
   lpfGainDown_ = config.lpfGainDown;
 }
