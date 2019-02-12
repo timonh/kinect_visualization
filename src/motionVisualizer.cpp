@@ -108,24 +108,25 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
 
     // Low pass filtering step.
-    //double lpfGainUp = 0.2;
-    double lpfGainUp = lpfGainUp_;
-
-    //double lpfGainDown = 0.4;
-    double lpfGainDown = lpfGainDown_;
     if (lpfTrigger_) {
       // Red
       if (outputImage.data[4*i] > outputImageTemp_.data[4*i])
-        outputImage.data[4*i] = (1-lpfGainUp) * outputImage.data[4*i] + lpfGainUp * outputImageTemp_.data[4*i];
+        outputImage.data[4*i] = (1-redlpfGainUp_) * outputImage.data[4*i] + redlpfGainUp_ * outputImageTemp_.data[4*i];
       else
-        outputImage.data[4*i] = (1-lpfGainDown) * outputImage.data[4*i] + lpfGainDown * outputImageTemp_.data[4*i];
+        outputImage.data[4*i] = (1-redlpfGainDown_) * outputImage.data[4*i] + redlpfGainDown_ * outputImageTemp_.data[4*i];
       //outputImage.data[4*i] = (1-lpfGain) * outputImage.data[4*i] + lpfGain * outputImageTemp_.data[4*i];
 
-      // Yellow
+      // Green
       if (outputImage.data[4*i+1] > outputImageTemp_.data[4*i+1])
-        outputImage.data[4*i+1] = (1-lpfGainUp) * outputImage.data[4*i+1] + lpfGainUp * outputImageTemp_.data[4*i+1];
+        outputImage.data[4*i+1] = (1-greenlpfGainUp_) * outputImage.data[4*i+1] + greenlpfGainUp_ * outputImageTemp_.data[4*i+1];
       else
-        outputImage.data[4*i+1] = (1-lpfGainDown) * outputImage.data[4*i+1] + lpfGainDown * outputImageTemp_.data[4*i+1];
+        outputImage.data[4*i+1] = (1-greenlpfGainDown_) * outputImage.data[4*i+1] + greenlpfGainDown_ * outputImageTemp_.data[4*i+1];
+
+      // Yellow
+      if (outputImage.data[4*i+2] > outputImageTemp_.data[4*i+2])
+        outputImage.data[4*i+2] = (1-bluelpfGainUp_) * outputImage.data[4*i+2] + bluelpfGainUp_ * outputImageTemp_.data[4*i+2];
+      else
+        outputImage.data[4*i+2] = (1-bluelpfGainDown_) * outputImage.data[4*i+2] + bluelpfGainDown_ * outputImageTemp_.data[4*i+2];
 
     }
 
@@ -139,8 +140,6 @@ void MotionVisualizer::edgeDetectionImageCallback(
 }
 
 void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
-  ROS_INFO("Reconfigure Request: %f",
-            config.lpfGainUp);
 
   redHistorySize_ = config.redHistorySize;
   redGain_ = config.redGain;
@@ -151,8 +150,12 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
   blueHistorySize_ = config.blueHistorySize;
   blueGain_ = config.blueGain;
   blueIntensityThreshold_ = config.blueIntensityThreshold;
-  lpfGainUp_ = config.lpfGainUp;
-  lpfGainDown_ = config.lpfGainDown;
+  redlpfGainUp_ = config.redlpfGainUp;
+  redlpfGainDown_ = config.redlpfGainDown;
+  greenlpfGainUp_ = config.greenlpfGainUp;
+  greenlpfGainDown_ = config.greenlpfGainDown;
+  bluelpfGainUp_ = config.bluelpfGainUp;
+  bluelpfGainDown_ = config.bluelpfGainDown;
 }
 
 

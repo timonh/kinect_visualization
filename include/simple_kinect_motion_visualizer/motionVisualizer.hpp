@@ -35,8 +35,12 @@ class MotionVisualizer
   double blueHistorySize_;
   double blueGain_;
   double blueIntensityThreshold_;
-  double lpfGainUp_;
-  double lpfGainDown_;
+  double redlpfGainUp_;
+  double redlpfGainDown_;
+  double greenlpfGainUp_;
+  double greenlpfGainDown_;
+  double bluelpfGainUp_;
+  double bluelpfGainDown_;
 
   private:
 
