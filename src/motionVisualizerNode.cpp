@@ -15,6 +15,8 @@
 
 #include "simple_kinect_motion_visualizer/motionVisualizer.hpp"
 
+#include <effects/builtin/filtereffect.h>
+
 
 //void drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level, MotionVisualizer &motionVisualizerObj) {
 //  ROS_INFO("Reconfigure Request: %f",
@@ -45,11 +47,15 @@ int main(int argc, char** argv)
 
   server.setCallback(f);
 
+  //AutomaticFilter af;
+  //af.testFunction();
+
   // Spin
   ros::AsyncSpinner spinner(2); // Use n threads // MANIPULATED!!!!!
   spinner.start();
 
   ros::waitForShutdown();
+
 
   return 0;
 }

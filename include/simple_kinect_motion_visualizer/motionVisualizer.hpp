@@ -11,7 +11,10 @@
 #include "sensor_msgs/Image.h"
 
 #include <dynamic_reconfigure/server.h>
+#include "geometry_msgs/Twist.h"
+
 #include "simple_kinect_motion_visualizer/VisualizationConfig.h"
+#include <effects/builtin/filtereffect.h>
 
 class MotionVisualizer
 {
@@ -42,6 +45,17 @@ class MotionVisualizer
   double bluelpfGainUp_;
   double bluelpfGainDown_;
 
+  // Music dr parameters.
+  bool quadraticCorrelation_;
+  double gainDivider_;
+  double minusTerm_;
+  double lowerBound_;
+
+  // PreLPF values
+  double preLPFMusicGain_;
+  double oldMusicValue_;
+  bool preLPFTrigger_;
+
   private:
 
   void edgeDetectionImageCallback(const sensor_msgs::Image& imageEdgeDetection);
@@ -51,6 +65,8 @@ class MotionVisualizer
 
   ros::Subscriber edgeDetectionImageSubscriber_;
   ros::Publisher coloredImagePublisher_;
+
+  ros::Publisher MusicValuePublisher_;
 
   ros::NodeHandle nodeHandle_;
 

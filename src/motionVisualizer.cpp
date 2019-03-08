@@ -23,6 +23,7 @@
 #include <limits>
 #include "ros/ros.h"
 #include "std_msgs/String.h"
+//#include "effects/builtin/filtereffect.h"
 
 
 #include "simple_kinect_motion_visualizer/motionVisualizer.hpp"
@@ -45,8 +46,11 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
 
   coloredImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image", 1000);
 
+  MusicValuePublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("music_values", 1000);
+
   // Trigger for low pass filter.
   lpfTrigger_ = false;
+  preLPFTrigger_ = false;
 
 }
 
@@ -69,39 +73,56 @@ void MotionVisualizer::edgeDetectionImageCallback(
   //cout << typeid(imageEdgeDetection.data).name() << endl;
 
   // Set number of considered images for blurring
-  if (edgeDetectionImageHistory.size() > redHistorySize_) edgeDetectionImageHistory.erase(edgeDetectionImageHistory.begin());
+  if (edgeDetectionImageHistory.size() > 2) edgeDetectionImageHistory.erase(edgeDetectionImageHistory.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
   edgeDetectionImageHistory.push_back(imageEdgeDetection);
 
+
+  int totalDifferenceMusicValue = 0;
 
   for (unsigned int i = 0; i < imageEdgeDetection.data.size(); ++i){
     outputImage.data[4*i] = imageEdgeDetection.data[i];
 
     int totalDifference = 0;
     bool fast = false;
+
     for(unsigned int j = 0; j < edgeDetectionImageHistory.size()-1; ++j){
 
       // TODO: check normalization
       totalDifference += fabs(edgeDetectionImageHistory[j].data[i] - edgeDetectionImageHistory[j+1].data[i]);
 
 
-      if(j <= greenHistorySize_ && totalDifference >= greenIntensityThreshold_){
-        outputImage.data[4*i+1] = fmin(255, greenGain_ * totalDifference);
-      }
-        //outputImage.data[4*i+2] = fmin(255, 0.9 * totalDifference);
-        //fast = true;
-      if(j <= blueHistorySize_ && totalDifference >= blueIntensityThreshold_){
-        outputImage.data[4*i+2] = fmin(255, blueGain_ * totalDifference);
-      }
+//      if(j <= greenHistorySize_ && totalDifference >= greenIntensityThreshold_){
+//        outputImage.data[4*i+1] = fmin(255, greenGain_ * totalDifference);
+//      }
+//        //outputImage.data[4*i+2] = fmin(255, 0.9 * totalDifference);
+//        //fast = true;
+//      if(j <= blueHistorySize_ && totalDifference >= blueIntensityThreshold_){
+//        outputImage.data[4*i+2] = fmin(255, blueGain_ * totalDifference);
+//      }
 
     }
+
+    // For total Motion characterization for Music Filter adjustment.
+
+
+
     if (!fast){
       outputImage.data[4*i] = fmin(255, redGain_ * totalDifference);
       if (totalDifference <= redIntensityThreshold_) outputImage.data[4*i] = 0;
       if (outputImage.data[4*i] <= redIntensityThreshold_) outputImage.data[4*i] = 0;
 
+      outputImage.data[4*i+1] = fmin(255, greenGain_ * totalDifference);
+      if (totalDifference <= greenIntensityThreshold_) outputImage.data[4*i+1] = 0;
+      if (outputImage.data[4*i+1] <= greenIntensityThreshold_) outputImage.data[4*i+1] = 0;
+
+      outputImage.data[4*i+2] = fmin(255, blueGain_ * totalDifference);
       if (totalDifference <= blueIntensityThreshold_) outputImage.data[4*i+2] = 0;
       if (outputImage.data[4*i+2] <= blueIntensityThreshold_) outputImage.data[4*i+2] = 0;
     }
+
+    int musicIntensityTreshold = 50;
+    if (totalDifference > musicIntensityTreshold) totalDifferenceMusicValue += totalDifference;
+
 
     //ROS_INFO("Filter gain up: %f", lpfGainUp_);
     //ROS_INFO("Filter gain down: %f", this->lpfGainDown_);
@@ -132,11 +153,33 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
   }
 
+
+
+
   // Helper image for low pass filtering.
   outputImageTemp_ = outputImage;
   lpfTrigger_ = true;
 
   coloredImagePublisher_.publish(outputImage);
+
+  geometry_msgs::Twist musicTwist;
+
+  if (quadraticCorrelation_) musicTwist.linear.x = max(min((float)totalDifferenceMusicValue * totalDifferenceMusicValue / (gainDivider_ * 1000000000000.0) - minusTerm_, 0.5) ,lowerBound_);
+  else musicTwist.linear.x = max(min((float)totalDifferenceMusicValue / 15000000000.0 - 0.07, 0.5) ,0.0024);
+
+  // Pre LPFing
+  if (preLPFTrigger_ == true) musicTwist.linear.x = musicTwist.linear.x * (1.0 - preLPFMusicGain_) + oldMusicValue_ * preLPFMusicGain_;
+  oldMusicValue_ = musicTwist.linear.x;
+  preLPFTrigger_ = true;
+
+  MusicValuePublisher_.publish(musicTwist);
+
+  // Testing to call a Mixxx function.
+
+
+
+
+
 }
 
 void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
@@ -156,6 +199,11 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
   greenlpfGainDown_ = config.greenlpfGainDown;
   bluelpfGainUp_ = config.bluelpfGainUp;
   bluelpfGainDown_ = config.bluelpfGainDown;
+  quadraticCorrelation_ = config.filterQuadraticCorrelation;
+  gainDivider_ = config.musicGainDivider;
+  minusTerm_ = config.minusTerm;
+  lowerBound_ = config.lowerBound;
+  preLPFMusicGain_ = config.preLPFMusicGain;
 }
 
 

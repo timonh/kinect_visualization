@@ -10,12 +10,18 @@ set(catkin_DIR "/opt/ros/kinetic/share/catkin/cmake")
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
   dynamic_reconfigure
 )
+
+find_package(Qt5Widgets)
+find_package(Qt5Core)
+find_package(Qt5Xml)
+find_package(Qt5Gui)
 
 generate_dynamic_reconfigure_options(
   cfg/visualization_config.cfg
@@ -118,7 +124,14 @@ generate_dynamic_reconfigure_options(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
+  INCLUDE_DIRS include ../../../Mixxx/mixxx/src ../../../Mixxx/mixxx ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
+  ../../../../../../usr/include/x86_64-linux-gnu/qt5 ../../../Mixxx/mixxx
+  ../../../Mixxx/mixxx/lin64_build/src ../../../Mixxx/mixxx/lin64_build
+  ../../../Mixxx/mixxx/lib/portaudio
+  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtGui
+  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtXml
+  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtWidgets
+  ../../../Mixxx/mixxx/lib/fidlib
   LIBRARIES simple_kinect_motion_visualizer
   CATKIN_DEPENDS roscpp rospy std_msgs dynamic_reconfigure
 # DEPENDS system_lib
@@ -133,6 +146,18 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ../../../Mixxx/mixxx/src
+  ../../../Mixxx/mixxx
+  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
+  ../../../../../../usr/include/x86_64-linux-gnu/qt5
+  ../../../Mixxx/mixxx
+  ../../../Mixxx/mixxx/lin64_build/src
+  ../../../Mixxx/mixxx/lin64_build
+  ../../../Mixxx/mixxx/lib/portaudio
+  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtGui
+  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtXml
+  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtWidgets
+  ../../../Mixxx/mixxx/lib/fidlib
 )
 
 
@@ -177,6 +202,10 @@ add_executable(
 target_link_libraries(motionVisualizerNode
   ${catkin_LIBRARIES}
   ${PROJECT_NAME}_library
+  Qt5::Widgets
+  Qt5::Xml
+  Qt5::Core
+  Qt5::Gui
 )
 
 #target_link_libraries(motionVisualizer
