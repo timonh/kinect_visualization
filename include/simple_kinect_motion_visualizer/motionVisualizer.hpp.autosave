@@ -76,6 +76,7 @@ class MotionVisualizer
   // Trigger for low pass filtering.
   bool lpfTrigger_;
 
+  
   bool generateCombinedImage_;
 
 

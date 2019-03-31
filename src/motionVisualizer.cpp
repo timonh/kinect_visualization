@@ -42,15 +42,26 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
 {
   ROS_INFO("Motion visualization node started.");
 //  readParameters();
-  edgeDetectionImageSubscriber_ = nodeHandle_.subscribe("/edge_detection/image", 1, &MotionVisualizer::edgeDetectionImageCallback, this);
+
+  std::string topic_name;
+  bool depth_image = false;
+  if (depth_image) topic_name = "/camera/depth/image_raw";
+  else topic_name = "/edge_detection/image";
+
+  edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizer::edgeDetectionImageCallback, this);
 
   coloredImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image", 1000);
+
+  coloredCombinedImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image_combined", 1000);
 
   MusicValuePublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("music_values", 1000);
 
   // Trigger for low pass filter.
   lpfTrigger_ = false;
   preLPFTrigger_ = false;
+
+  // Bool to chose if generating combined image
+  generateCombinedImage_ = true;
 
 }
 
@@ -70,6 +81,16 @@ void MotionVisualizer::edgeDetectionImageCallback(
   outputImage.header = imageEdgeDetection.header;
   outputImage.data.resize(4*imageEdgeDetection.data.size());
 
+
+  sensor_msgs::Image outputImageCombined;
+  outputImageCombined.encoding = "rgba8";
+  outputImageCombined.width = imageEdgeDetection.width;
+  outputImageCombined.height = imageEdgeDetection.height;
+  outputImageCombined.step = imageEdgeDetection.step * 4;
+  outputImageCombined.is_bigendian = imageEdgeDetection.is_bigendian;
+  outputImageCombined.header = imageEdgeDetection.header;
+  outputImageCombined.data.resize(4*imageEdgeDetection.data.size());
+
   //cout << typeid(imageEdgeDetection.data).name() << endl;
 
   // Set number of considered images for blurring
@@ -79,8 +100,18 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
   int totalDifferenceMusicValue = 0;
 
+  // Fot calculation of pixel center of gravity:
+  int totalDifferenceTimesHorizontalPixels;
+  int totalDOfferenceTimesVertialPixels;
+
+  std::cout << "Size of the Edge detection image: " << imageEdgeDetection.data.size() << std::endl;
+
+  //imageEdgeDetection.header.
+
   for (unsigned int i = 0; i < imageEdgeDetection.data.size(); ++i){
     outputImage.data[4*i] = imageEdgeDetection.data[i];
+
+
 
     int totalDifference = 0;
     bool fast = false;
@@ -89,6 +120,12 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
       // TODO: check normalization
       totalDifference += fabs(edgeDetectionImageHistory[j].data[i] - edgeDetectionImageHistory[j+1].data[i]);
+
+
+      // For calculation of the center of gravity of the changes:
+      int localDifference = fabs(edgeDetectionImageHistory[j].data[i] - edgeDetectionImageHistory[j+1].data[i]);
+
+
 
 
 //      if(j <= greenHistorySize_ && totalDifference >= greenIntensityThreshold_){
@@ -148,8 +185,24 @@ void MotionVisualizer::edgeDetectionImageCallback(
         outputImage.data[4*i+2] = (1-bluelpfGainUp_) * outputImage.data[4*i+2] + bluelpfGainUp_ * outputImageTemp_.data[4*i+2];
       else
         outputImage.data[4*i+2] = (1-bluelpfGainDown_) * outputImage.data[4*i+2] + bluelpfGainDown_ * outputImageTemp_.data[4*i+2];
-
     }
+
+
+
+    if (generateCombinedImage_)
+    {
+        if (totalDifference < 40) {
+             outputImageCombined.data[4*i] = (int)fmin(outputImage.data[4*i] + imageEdgeDetection.data[i], 255.0);
+             outputImageCombined.data[4*i+1] = (int)fmin(outputImage.data[4*i+1]  + imageEdgeDetection.data[i], 255.0);
+             outputImageCombined.data[4*i+2] = (int)fmin(outputImage.data[4*i+2]  + imageEdgeDetection.data[i],255.0);
+        }
+        else {
+            outputImageCombined.data[4*i] = outputImage.data[4*i];
+            outputImageCombined.data[4*i+1] = outputImage.data[4*i+1];
+            outputImageCombined.data[4*i+2] = outputImage.data[4*i+2];
+        }
+    }
+
 
   }
 
@@ -162,6 +215,10 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
   coloredImagePublisher_.publish(outputImage);
 
+
+  // Option to publish the combined image.
+  if (generateCombinedImage_) coloredCombinedImagePublisher_.publish(outputImageCombined);
+
   geometry_msgs::Twist musicTwist;
 
   if (quadraticCorrelation_) musicTwist.linear.x = max(min((float)totalDifferenceMusicValue * totalDifferenceMusicValue / (gainDivider_ * 1000000000000.0) - minusTerm_, 0.5) ,lowerBound_);
@@ -171,6 +228,8 @@ void MotionVisualizer::edgeDetectionImageCallback(
   if (preLPFTrigger_ == true) musicTwist.linear.x = musicTwist.linear.x * (1.0 - preLPFMusicGain_) + oldMusicValue_ * preLPFMusicGain_;
   oldMusicValue_ = musicTwist.linear.x;
   preLPFTrigger_ = true;
+
+  musicTwist.linear.y = max(min(3.0 * musicTwist.linear.x ,0.5) ,0.0);
 
   MusicValuePublisher_.publish(musicTwist);
 
