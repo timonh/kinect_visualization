@@ -61,6 +61,14 @@ class GravityEffector
   double cogY_;
   int accumulatedDifference_;
 
+  double lpfcogX_;
+  double lpfcogY_;
+  int lpfaccumulatedDifference_;
+  double oldcogX_;
+  double oldcogY_;
+  int oldaccumulatedDifference_;
+  bool lpfcogTrigger_;
+
   private:
 
   void inputImageCallback(const sensor_msgs::Image& inputImage);
