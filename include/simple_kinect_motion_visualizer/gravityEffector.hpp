@@ -14,17 +14,17 @@
 #include "geometry_msgs/Twist.h"
 
 #include "simple_kinect_motion_visualizer/VisualizationConfig.h"
-#include <effects/builtin/filtereffect.h>
+//#include <effects/builtin/filtereffect.h>
 
-class MotionVisualizer
+class GravityEffector
 {
   public:
 
   // Constructor
-  MotionVisualizer(ros::NodeHandle& nodeHandle);
+  GravityEffector(ros::NodeHandle& nodeHandle);
 
   // Destructor
-  ~MotionVisualizer();
+  ~GravityEffector();
 
   void drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level);
 
@@ -56,28 +56,40 @@ class MotionVisualizer
   double oldMusicValue_;
   bool preLPFTrigger_;
 
+  // cog Characterizations.
+  double cogX_;
+  double cogY_;
+  int accumulatedDifference_;
+
   private:
 
-  void edgeDetectionImageCallback(const sensor_msgs::Image& imageEdgeDetection);
+  void inputImageCallback(const sensor_msgs::Image& inputImage);
+
+  void cogCallback(geometry_msgs::Twist cogKeyvalues);
+
 
   // List of sensor images (for history)
-  std::vector<sensor_msgs::Image> edgeDetectionImageHistory;
+  //std::vector<sensor_msgs::Image> edgeDetectionImageHistory;
 
-  ros::Subscriber edgeDetectionImageSubscriber_;
-  ros::Publisher coloredCombinedImagePublisher_;
-  ros::Publisher coloredImagePublisher_;
+  ros::Subscriber inputImageSubscriber_;
+  //ros::Publisher coloredCombinedImagePublisher_;
+  ros::Publisher outputImagePublisher_;
 
-  ros::Publisher MusicValuePublisher_;
+  ros::Subscriber cogSubscriber_;
+
+  //ros::Publisher cogPublisher_;
+
+  //ros::Publisher MusicValuePublisher_;
 
   ros::NodeHandle nodeHandle_;
 
   // Temporary image for low pass filtering
-  sensor_msgs::Image outputImageTemp_;
+  //sensor_msgs::Image outputImageTemp_;
   // Trigger for low pass filtering.
-  bool lpfTrigger_;
+  //bool lpfTrigger_;
 
-  
-  bool generateCombinedImage_;
+
+  //bool generateCombinedImage_;
 
 
 

@@ -13,7 +13,7 @@
 
 #include <ros/console.h>
 
-#include "simple_kinect_motion_visualizer/motionVisualizer.hpp"
+#include "simple_kinect_motion_visualizer/gravityEffector.hpp"
 
 //#include <effects/builtin/filtereffect.h>
 
@@ -28,11 +28,11 @@
 int main(int argc, char** argv)
 {
 
-  ros::init(argc, argv, "flower_core");
+  ros::init(argc, argv, "gravity_effector");
   ros::NodeHandle nodeHandle("~");
   //elevation_mapping::ElevationMapping elevationMap(nodeHandle);
 
-  MotionVisualizer mv(nodeHandle);
+  GravityEffector ge(nodeHandle);
 
   // Added by timon to set the logger level.
   //if( ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info) ) {
@@ -40,18 +40,18 @@ int main(int argc, char** argv)
   //}
 
   // Dynamic Reconfigure.
-  dynamic_reconfigure::Server<simple_kinect_motion_visualizer::VisualizationConfig> server;
-  dynamic_reconfigure::Server<simple_kinect_motion_visualizer::VisualizationConfig>::CallbackType f;
+  //dynamic_reconfigure::Server<simple_kinect_motion_visualizer::VisualizationConfig> server;
+  //dynamic_reconfigure::Server<simple_kinect_motion_visualizer::VisualizationConfig>::CallbackType f;
 
-  f = boost::bind(&MotionVisualizer::drCallback, &mv, _1, _2);
+  //f = boost::bind(&MotionVisualizer::drCallback, &mv, _1, _2);
 
-  server.setCallback(f);
+  //server.setCallback(f);
 
   //AutomaticFilter af;
   //af.testFunction();
 
   // Spin
-  ros::AsyncSpinner spinner(2); // Use n threads // MANIPULATED!!!!!
+  ros::AsyncSpinner spinner(2);
   spinner.start();
 
   ros::waitForShutdown();

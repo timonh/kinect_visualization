@@ -56,6 +56,8 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
 
   MusicValuePublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("music_values", 1000);
 
+  cogPublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("cog_keyvalues", 1000);
+
   // Trigger for low pass filter.
   lpfTrigger_ = false;
   preLPFTrigger_ = false;
@@ -104,12 +106,27 @@ void MotionVisualizer::edgeDetectionImageCallback(
   int totalDifferenceTimesHorizontalPixels;
   int totalDOfferenceTimesVertialPixels;
 
-  std::cout << "Size of the Edge detection image: " << imageEdgeDetection.data.size() << std::endl;
+  //std::cout << "Size of the Edge detection image: " << imageEdgeDetection.data.size() << std::endl;
 
   //imageEdgeDetection.header.
 
+  // For center of gravity calculation.
+  int accumulatedTotalDifference = 0;
+  double accumulatedTotalDifferenceTimesXAxis = 0.0;
+  double accumulatedTotalDifferenceTimesYAxis = 0.0;
+
+
+
   for (unsigned int i = 0; i < imageEdgeDetection.data.size(); ++i){
     outputImage.data[4*i] = imageEdgeDetection.data[i];
+
+
+
+    // Get location within image: x = 0: left border, x = 1 reight border, y = 0: top, y = 0: bottom
+    double pixelXAxis = double(i % imageEdgeDetection.width) / (double)imageEdgeDetection.width;
+    double pixelYAxis = double(floor(i / imageEdgeDetection.width)+1) / (double)imageEdgeDetection.height;
+    //std::cout << "XAxis: " << pixelXAxis << std::endl;
+    //std::cout << "YAxis: " << pixelYAxis << std::endl;
 
 
 
@@ -203,10 +220,60 @@ void MotionVisualizer::edgeDetectionImageCallback(
         }
     }
 
-
+    // Center of Gravity Calculation:
+    if (totalDifference >= 50) {
+      accumulatedTotalDifferenceTimesXAxis += totalDifference * pixelXAxis;
+      accumulatedTotalDifferenceTimesYAxis += totalDifference * pixelYAxis;
+      accumulatedTotalDifference += totalDifference;
+    }
   }
 
+  //! TODO: Add nan check!
 
+  // Center of Gravity Calculation:
+  //std::cout << "Center of Gravity X Axis: " << accumulatedTotalDifferenceTimesXAxis / double(accumulatedTotalDifference) << std::endl;
+  //std::cout << "Center of Gravity Y Axis: " << accumulatedTotalDifferenceTimesYAxis / double(accumulatedTotalDifference) << std::endl;
+  //std::cout << "Accumulated total difference: " << accumulatedTotalDifference << std::endl;
+
+
+  geometry_msgs::Twist cog_values;
+  cog_values.linear.x = accumulatedTotalDifferenceTimesXAxis / double(accumulatedTotalDifference);
+  cog_values.linear.y = accumulatedTotalDifferenceTimesYAxis / double(accumulatedTotalDifference);
+  cog_values.linear.z = accumulatedTotalDifference;
+
+  cogPublisher_.publish(cog_values);
+
+
+
+
+
+  // Mark the cog:
+
+  // if ()
+  // Translate to Pixel Coordinates:
+
+  if (false) {
+  if (!isnan(cog_values.linear.x) && !isnan(cog_values.linear.y)){
+    std::cout << "got here" << std::endl;
+    int iResidual = 4 * round(cog_values.linear.x * outputImage.width);
+    int jResidual = 4 * round(cog_values.linear.y * outputImage.height);
+
+    int imageIterator = (jResidual - 1) * outputImage.width + iResidual;
+
+    outputImage.data[imageIterator] = 255;
+    if (imageIterator > 8 && imageIterator < outputImage.width * outputImage.height - 8) {
+        outputImage.data[imageIterator-4] = 255;
+        outputImage.data[imageIterator-8] = 255;
+        outputImage.data[imageIterator+4] = 255;
+        outputImage.data[imageIterator+8] = 255;
+    }
+
+    //for (unsigned int i = imageIterator - 2; i <= imageIterator + 2 ; ++i) {
+
+    //}
+
+  }
+  }
 
 
   // Helper image for low pass filtering.

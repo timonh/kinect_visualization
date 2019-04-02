@@ -1,0 +1,6 @@
+<launch>
+
+  <node name="gravityEffectorNode" pkg="simple_kinect_motion_visualizer" type="gravityEffectorNode" output="screen"/>
+
+
+</launch>

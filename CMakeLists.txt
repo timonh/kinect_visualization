@@ -124,14 +124,15 @@ generate_dynamic_reconfigure_options(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include ../../../Mixxx/mixxx/src ../../../Mixxx/mixxx ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
-  ../../../../../../usr/include/x86_64-linux-gnu/qt5 ../../../Mixxx/mixxx
-  ../../../Mixxx/mixxx/lin64_build/src ../../../Mixxx/mixxx/lin64_build
-  ../../../Mixxx/mixxx/lib/portaudio
-  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtGui
-  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtXml
-  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtWidgets
-  ../../../Mixxx/mixxx/lib/fidlib
+  INCLUDE_DIRS include
+  #../../../Mixxx/mixxx/src ../../../Mixxx/mixxx ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
+ # ../../../../../../usr/include/x86_64-linux-gnu/qt5 ../../../Mixxx/mixxx
+ # ../../../Mixxx/mixxx/lin64_build/src ../../../Mixxx/mixxx/lin64_build
+ # ../../../Mixxx/mixxx/lib/portaudio
+ # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtGui
+ # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtXml
+ # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtWidgets
+ # ../../../Mixxx/mixxx/lib/fidlib
   LIBRARIES simple_kinect_motion_visualizer
   CATKIN_DEPENDS roscpp rospy std_msgs dynamic_reconfigure
 # DEPENDS system_lib
@@ -146,18 +147,18 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  ../../../Mixxx/mixxx/src
-  ../../../Mixxx/mixxx
-  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
-  ../../../../../../usr/include/x86_64-linux-gnu/qt5
-  ../../../Mixxx/mixxx
-  ../../../Mixxx/mixxx/lin64_build/src
-  ../../../Mixxx/mixxx/lin64_build
-  ../../../Mixxx/mixxx/lib/portaudio
-  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtGui
-  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtXml
-  ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtWidgets
-  ../../../Mixxx/mixxx/lib/fidlib
+ # ../../../Mixxx/mixxx/src
+ # ../../../Mixxx/mixxx
+ # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
+ # ../../../../../../usr/include/x86_64-linux-gnu/qt5
+ # ../../../Mixxx/mixxx
+ # ../../../Mixxx/mixxx/lin64_build/src
+ # ../../../Mixxx/mixxx/lin64_build
+ # ../../../Mixxx/mixxx/lib/portaudio
+ # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtGui
+ # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtXml
+ # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtWidgets
+ # ../../../Mixxx/mixxx/lib/fidlib
 )
 
 
@@ -165,11 +166,19 @@ include_directories(
 ## Declare a C++ library
 add_library(${PROJECT_NAME}_library
   src/motionVisualizer.cpp
+  src/gravityEffector.cpp
 )
 
 add_executable(
   motionVisualizerNode src/motionVisualizerNode.cpp
+
 )
+
+add_executable(
+  gravityEffectorNode src/gravityEffectorNode.cpp
+)
+
+
 
 #add_dependencies(motionVisualizerNode ${PROJECT_NAME}_gencfg)
 
@@ -206,6 +215,12 @@ target_link_libraries(motionVisualizerNode
   Qt5::Xml
   Qt5::Core
   Qt5::Gui
+)
+
+target_link_libraries(gravityEffectorNode
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}_library
+
 )
 
 #target_link_libraries(motionVisualizer

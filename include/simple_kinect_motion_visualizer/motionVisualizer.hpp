@@ -14,7 +14,7 @@
 #include "geometry_msgs/Twist.h"
 
 #include "simple_kinect_motion_visualizer/VisualizationConfig.h"
-#include <effects/builtin/filtereffect.h>
+//#include <effects/builtin/filtereffect.h>
 
 class MotionVisualizer
 {
@@ -67,6 +67,8 @@ class MotionVisualizer
   ros::Publisher coloredCombinedImagePublisher_;
   ros::Publisher coloredImagePublisher_;
 
+  ros::Publisher cogPublisher_;
+
   ros::Publisher MusicValuePublisher_;
 
   ros::NodeHandle nodeHandle_;
@@ -76,6 +78,7 @@ class MotionVisualizer
   // Trigger for low pass filtering.
   bool lpfTrigger_;
 
+  
   bool generateCombinedImage_;
 
 
