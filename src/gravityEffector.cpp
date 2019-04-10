@@ -236,10 +236,12 @@ void GravityEffector::cogCallback(geometry_msgs::Twist cogKeyvalues)
     cogY_ = cogKeyvalues.linear.y;
     accumulatedDifference_ = cogKeyvalues.linear.z;
 
-    double lpffactor = 0.75;
+    double lpffactor = 0.87;
 
     if (lpfcogTrigger_ == true) {
       lpfcogX_ = lpffactor * lpfcogX_ + (1 - lpffactor) * cogX_;
+      lpfcogY_ = lpffactor * lpfcogY_ + (1 - lpffactor) * cogY_;
+      lpfcogX_ = lpffactor * lpfaccumulatedDifference_ + (1 - lpffactor) * accumulatedDifference_;
     }
 
     if (lpfcogTrigger_ == false) {

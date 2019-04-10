@@ -50,9 +50,9 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
 
   edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizer::edgeDetectionImageCallback, this);
 
-  coloredImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image", 1000);
+  coloredImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image2", 1000);
 
-  coloredCombinedImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image_combined", 1000);
+  coloredCombinedImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image_combined2", 1000);
 
   MusicValuePublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("music_values", 1000);
 
@@ -63,8 +63,13 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
   preLPFTrigger_ = false;
 
   // Bool to chose if generating combined image
-  generateCombinedImage_ = true;
+  generateCombinedImage_ = false;
 
+  // Bool to chose if calculating cog of motion
+  getCOG_ = false;
+
+  // Bool to chose if publishing music values
+  publishMusicTwist_ = false;
 }
 
 
@@ -93,36 +98,47 @@ void MotionVisualizer::edgeDetectionImageCallback(
   outputImageCombined.header = imageEdgeDetection.header;
   outputImageCombined.data.resize(4*imageEdgeDetection.data.size());
 
+
+
+
   //cout << typeid(imageEdgeDetection.data).name() << endl;
 
   // Set number of considered images for blurring
-  if (edgeDetectionImageHistory.size() > 2) edgeDetectionImageHistory.erase(edgeDetectionImageHistory.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
-  edgeDetectionImageHistory.push_back(imageEdgeDetection);
+  if (edgeDetectionImageHistory_.size() > 1) edgeDetectionImageHistory_.erase(edgeDetectionImageHistory_.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
+  edgeDetectionImageHistory_.push_back(imageEdgeDetection);
 
+  if (outputImages_.size() > 1) outputImages_.erase(outputImages_.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
+  outputImages_.push_back(outputImage);
+
+  //std::cout << "edgeDetectionImageHistory__size: " << edgeDetectionImageHistory_.size() << std::endl;
 
   int totalDifferenceMusicValue = 0;
 
   // Fot calculation of pixel center of gravity:
-  int totalDifferenceTimesHorizontalPixels;
-  int totalDOfferenceTimesVertialPixels;
+  //int totalDifferenceTimesHorizontalPixels;
+  //int totalDOfferenceTimesVertialPixels;
 
   //std::cout << "Size of the Edge detection image: " << imageEdgeDetection.data.size() << std::endl;
 
   //imageEdgeDetection.header.
 
   // For center of gravity calculation.
+
   int accumulatedTotalDifference = 0;
   double accumulatedTotalDifferenceTimesXAxis = 0.0;
   double accumulatedTotalDifferenceTimesYAxis = 0.0;
 
 
 
+
   for (unsigned int i = 0; i < imageEdgeDetection.data.size(); ++i){
-    outputImage.data[4*i] = imageEdgeDetection.data[i];
+    //outputImage.data[4*i] = imageEdgeDetection.data[i];
 
 
 
     // Get location within image: x = 0: left border, x = 1 reight border, y = 0: top, y = 0: bottom
+
+
     double pixelXAxis = double(i % imageEdgeDetection.width) / (double)imageEdgeDetection.width;
     double pixelYAxis = double(floor(i / imageEdgeDetection.width)+1) / (double)imageEdgeDetection.height;
     //std::cout << "XAxis: " << pixelXAxis << std::endl;
@@ -133,14 +149,15 @@ void MotionVisualizer::edgeDetectionImageCallback(
     int totalDifference = 0;
     bool fast = false;
 
-    for(unsigned int j = 0; j < edgeDetectionImageHistory.size()-1; ++j){
+    for(unsigned int j = 0; j < edgeDetectionImageHistory_.size()-1; ++j){
 
+      //std::cout << "Went in here " << j+1 << " times" << std::endl;
       // TODO: check normalization
-      totalDifference += fabs(edgeDetectionImageHistory[j].data[i] - edgeDetectionImageHistory[j+1].data[i]);
+      totalDifference += fabs(edgeDetectionImageHistory_[j].data[i] - edgeDetectionImageHistory_[j+1].data[i]);
 
 
       // For calculation of the center of gravity of the changes:
-      int localDifference = fabs(edgeDetectionImageHistory[j].data[i] - edgeDetectionImageHistory[j+1].data[i]);
+      //int localDifference = fabs(edgeDetectionImageHistory_[j].data[i] - edgeDetectionImageHistory_[j+1].data[i]);
 
 
 
@@ -160,19 +177,7 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
 
 
-    if (!fast){
-      outputImage.data[4*i] = fmin(255, redGain_ * totalDifference);
-      if (totalDifference <= redIntensityThreshold_) outputImage.data[4*i] = 0;
-      if (outputImage.data[4*i] <= redIntensityThreshold_) outputImage.data[4*i] = 0;
 
-      outputImage.data[4*i+1] = fmin(255, greenGain_ * totalDifference);
-      if (totalDifference <= greenIntensityThreshold_) outputImage.data[4*i+1] = 0;
-      if (outputImage.data[4*i+1] <= greenIntensityThreshold_) outputImage.data[4*i+1] = 0;
-
-      outputImage.data[4*i+2] = fmin(255, blueGain_ * totalDifference);
-      if (totalDifference <= blueIntensityThreshold_) outputImage.data[4*i+2] = 0;
-      if (outputImage.data[4*i+2] <= blueIntensityThreshold_) outputImage.data[4*i+2] = 0;
-    }
 
     int musicIntensityTreshold = 50;
     if (totalDifference > musicIntensityTreshold) totalDifferenceMusicValue += totalDifference;
@@ -184,24 +189,40 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
     // Low pass filtering step.
     if (lpfTrigger_) {
-      // Red
-      if (outputImage.data[4*i] > outputImageTemp_.data[4*i])
-        outputImage.data[4*i] = (1-redlpfGainUp_) * outputImage.data[4*i] + redlpfGainUp_ * outputImageTemp_.data[4*i];
-      else
-        outputImage.data[4*i] = (1-redlpfGainDown_) * outputImage.data[4*i] + redlpfGainDown_ * outputImageTemp_.data[4*i];
-      //outputImage.data[4*i] = (1-lpfGain) * outputImage.data[4*i] + lpfGain * outputImageTemp_.data[4*i];
+        if (outputImages_.size() > 1) {
 
-      // Green
-      if (outputImage.data[4*i+1] > outputImageTemp_.data[4*i+1])
-        outputImage.data[4*i+1] = (1-greenlpfGainUp_) * outputImage.data[4*i+1] + greenlpfGainUp_ * outputImageTemp_.data[4*i+1];
-      else
-        outputImage.data[4*i+1] = (1-greenlpfGainDown_) * outputImage.data[4*i+1] + greenlpfGainDown_ * outputImageTemp_.data[4*i+1];
+          if (!fast){
+            outputImages_[1].data[4*i] = fmin(255, redGain_ * totalDifference);
+            if (totalDifference <= redIntensityThreshold_) outputImages_[1].data[4*i] = 0;
+            if (outputImages_[1].data[4*i] <= redIntensityThreshold_) outputImages_[1].data[4*i] = 0;
 
-      // Yellow
-      if (outputImage.data[4*i+2] > outputImageTemp_.data[4*i+2])
-        outputImage.data[4*i+2] = (1-bluelpfGainUp_) * outputImage.data[4*i+2] + bluelpfGainUp_ * outputImageTemp_.data[4*i+2];
-      else
-        outputImage.data[4*i+2] = (1-bluelpfGainDown_) * outputImage.data[4*i+2] + bluelpfGainDown_ * outputImageTemp_.data[4*i+2];
+            outputImages_[1].data[4*i+1] = fmin(255, greenGain_ * totalDifference);
+            if (totalDifference <= greenIntensityThreshold_) outputImages_[1].data[4*i+1] = 0;
+            if (outputImages_[1].data[4*i+1] <= greenIntensityThreshold_) outputImages_[1].data[4*i+1] = 0;
+
+            outputImages_[1].data[4*i+2] = fmin(255, blueGain_ * totalDifference);
+            if (totalDifference <= blueIntensityThreshold_) outputImages_[1].data[4*i+2] = 0;
+            if (outputImages_[1].data[4*i+2] <= blueIntensityThreshold_) outputImages_[1].data[4*i+2] = 0;
+          }
+          // Red
+          if (outputImages_[1].data[4*i] > outputImages_[0].data[4*i])
+            outputImages_[1].data[4*i] = (1-redlpfGainUp_) * outputImages_[1].data[4*i] + redlpfGainUp_ * outputImages_[0].data[4*i];
+          else
+            outputImages_[1].data[4*i] = (1-redlpfGainDown_) * outputImages_[1].data[4*i] + redlpfGainDown_ * outputImages_[0].data[4*i];
+          //outputImage.data[4*i] = (1-lpfGain) * outputImage.data[4*i] + lpfGain * outputImageTemp_.data[4*i];
+
+          // Green
+          if (outputImages_[1].data[4*i+1] > outputImages_[0].data[4*i+1])
+            outputImages_[1].data[4*i+1] = (1-greenlpfGainUp_) * outputImages_[1].data[4*i+1] + greenlpfGainUp_ * outputImages_[0].data[4*i+1];
+          else
+            outputImages_[1].data[4*i+1] = (1-greenlpfGainDown_) * outputImages_[1].data[4*i+1] + greenlpfGainDown_ * outputImages_[0].data[4*i+1];
+
+          // Yellow
+          if (outputImages_[1].data[4*i+2] > outputImages_[0].data[4*i+2])
+            outputImages_[1].data[4*i+2] = (1-bluelpfGainUp_) * outputImages_[1].data[4*i+2] + bluelpfGainUp_ * outputImages_[0].data[4*i+2];
+          else
+            outputImages_[1].data[4*i+2] = (1-bluelpfGainDown_) * outputImages_[1].data[4*i+2] + bluelpfGainDown_ * outputImages_[0].data[4*i+2];
+        }
     }
 
 
@@ -209,23 +230,26 @@ void MotionVisualizer::edgeDetectionImageCallback(
     if (generateCombinedImage_)
     {
         if (totalDifference < 40) {
-             outputImageCombined.data[4*i] = (int)fmin(outputImage.data[4*i] + imageEdgeDetection.data[i], 255.0);
-             outputImageCombined.data[4*i+1] = (int)fmin(outputImage.data[4*i+1]  + imageEdgeDetection.data[i], 255.0);
-             outputImageCombined.data[4*i+2] = (int)fmin(outputImage.data[4*i+2]  + imageEdgeDetection.data[i],255.0);
+             outputImageCombined.data[4*i] = (int)fmin(outputImages_[1].data[4*i] + imageEdgeDetection.data[i], 255.0);
+             outputImageCombined.data[4*i+1] = (int)fmin(outputImages_[1].data[4*i+1]  + imageEdgeDetection.data[i], 255.0);
+             outputImageCombined.data[4*i+2] = (int)fmin(outputImages_[1].data[4*i+2]  + imageEdgeDetection.data[i],255.0);
         }
         else {
-            outputImageCombined.data[4*i] = outputImage.data[4*i];
-            outputImageCombined.data[4*i+1] = outputImage.data[4*i+1];
-            outputImageCombined.data[4*i+2] = outputImage.data[4*i+2];
+            outputImageCombined.data[4*i] = outputImages_[1].data[4*i];
+            outputImageCombined.data[4*i+1] = outputImages_[1].data[4*i+1];
+            outputImageCombined.data[4*i+2] = outputImages_[1].data[4*i+2];
         }
     }
 
     // Center of Gravity Calculation:
-    if (totalDifference >= 50) {
-      accumulatedTotalDifferenceTimesXAxis += totalDifference * pixelXAxis;
-      accumulatedTotalDifferenceTimesYAxis += totalDifference * pixelYAxis;
-      accumulatedTotalDifference += totalDifference;
+    if (getCOG_) {
+      if (totalDifference >= 40) {
+        accumulatedTotalDifferenceTimesXAxis += totalDifference * pixelXAxis;
+        accumulatedTotalDifferenceTimesYAxis += totalDifference * pixelYAxis;
+        accumulatedTotalDifference += totalDifference;
+      }
     }
+
   }
 
   //! TODO: Add nan check!
@@ -236,13 +260,36 @@ void MotionVisualizer::edgeDetectionImageCallback(
   //std::cout << "Accumulated total difference: " << accumulatedTotalDifference << std::endl;
 
 
-  geometry_msgs::Twist cog_values;
-  cog_values.linear.x = accumulatedTotalDifferenceTimesXAxis / double(accumulatedTotalDifference);
-  cog_values.linear.y = accumulatedTotalDifferenceTimesYAxis / double(accumulatedTotalDifference);
-  cog_values.linear.z = accumulatedTotalDifference;
+  if (getCOG_) {
+    geometry_msgs::Twist cog_values;
+    cog_values.linear.x = accumulatedTotalDifferenceTimesXAxis / double(accumulatedTotalDifference);
+    cog_values.linear.y = accumulatedTotalDifferenceTimesYAxis / double(accumulatedTotalDifference);
+    cog_values.linear.z = accumulatedTotalDifference;
+    cogPublisher_.publish(cog_values);
 
-  cogPublisher_.publish(cog_values);
+    if (false) {
+      if (!isnan(cog_values.linear.x) && !isnan(cog_values.linear.y)){
+        std::cout << "got here" << std::endl;
+        int iResidual = 4 * round(cog_values.linear.x * outputImage.width);
+        int jResidual = 4 * round(cog_values.linear.y * outputImage.height);
 
+        int imageIterator = (jResidual - 1) * outputImage.width + iResidual;
+
+        //outputImage.data[imageIterator] = 255;
+        if (imageIterator > 8 && imageIterator < outputImage.width * outputImage.height - 8) {
+            outputImage.data[imageIterator-4] = 255;
+            outputImage.data[imageIterator-8] = 255;
+            outputImage.data[imageIterator+4] = 255;
+            outputImage.data[imageIterator+8] = 255;
+        }
+
+        //for (unsigned int i = imageIterator - 2; i <= imageIterator + 2 ; ++i) {
+
+        //}
+
+      }
+    }
+  }
 
 
 
@@ -252,53 +299,39 @@ void MotionVisualizer::edgeDetectionImageCallback(
   // if ()
   // Translate to Pixel Coordinates:
 
-  if (false) {
-  if (!isnan(cog_values.linear.x) && !isnan(cog_values.linear.y)){
-    std::cout << "got here" << std::endl;
-    int iResidual = 4 * round(cog_values.linear.x * outputImage.width);
-    int jResidual = 4 * round(cog_values.linear.y * outputImage.height);
 
-    int imageIterator = (jResidual - 1) * outputImage.width + iResidual;
-
-    outputImage.data[imageIterator] = 255;
-    if (imageIterator > 8 && imageIterator < outputImage.width * outputImage.height - 8) {
-        outputImage.data[imageIterator-4] = 255;
-        outputImage.data[imageIterator-8] = 255;
-        outputImage.data[imageIterator+4] = 255;
-        outputImage.data[imageIterator+8] = 255;
-    }
-
-    //for (unsigned int i = imageIterator - 2; i <= imageIterator + 2 ; ++i) {
-
-    //}
-
-  }
-  }
 
 
   // Helper image for low pass filtering.
-  outputImageTemp_ = outputImage;
+
+  // TODO: VectorVersion instead of copying entire image..
+  //outputImageTemp_ = outputImage;
+
+
   lpfTrigger_ = true;
 
-  coloredImagePublisher_.publish(outputImage);
+  coloredImagePublisher_.publish(outputImages_[1]);
 
 
   // Option to publish the combined image.
   if (generateCombinedImage_) coloredCombinedImagePublisher_.publish(outputImageCombined);
 
-  geometry_msgs::Twist musicTwist;
 
-  if (quadraticCorrelation_) musicTwist.linear.x = max(min((float)totalDifferenceMusicValue * totalDifferenceMusicValue / (gainDivider_ * 1000000000000.0) - minusTerm_, 0.5) ,lowerBound_);
-  else musicTwist.linear.x = max(min((float)totalDifferenceMusicValue / 15000000000.0 - 0.07, 0.5) ,0.0024);
+  if (publishMusicTwist_) {
+    geometry_msgs::Twist musicTwist;
 
-  // Pre LPFing
-  if (preLPFTrigger_ == true) musicTwist.linear.x = musicTwist.linear.x * (1.0 - preLPFMusicGain_) + oldMusicValue_ * preLPFMusicGain_;
-  oldMusicValue_ = musicTwist.linear.x;
-  preLPFTrigger_ = true;
+    if (quadraticCorrelation_) musicTwist.linear.x = max(min((float)totalDifferenceMusicValue * totalDifferenceMusicValue / (gainDivider_ * 1000000000000.0) - minusTerm_, 0.5) ,lowerBound_);
+    else musicTwist.linear.x = max(min((float)totalDifferenceMusicValue / 15000000000.0 - 0.07, 0.5) ,0.0024);
 
-  musicTwist.linear.y = max(min(3.0 * musicTwist.linear.x ,0.5) ,0.0);
+    // Pre LPFing
+    if (preLPFTrigger_ == true) musicTwist.linear.x = musicTwist.linear.x * (1.0 - preLPFMusicGain_) + oldMusicValue_ * preLPFMusicGain_;
+    oldMusicValue_ = musicTwist.linear.x;
+    preLPFTrigger_ = true;
 
-  MusicValuePublisher_.publish(musicTwist);
+    musicTwist.linear.y = max(min(3.0 * musicTwist.linear.x ,0.5) ,0.0);
+
+    MusicValuePublisher_.publish(musicTwist);
+  }
 
   // Testing to call a Mixxx function.
 

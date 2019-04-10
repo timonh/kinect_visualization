@@ -51,7 +51,7 @@ int main(int argc, char** argv)
   //af.testFunction();
 
   // Spin
-  ros::AsyncSpinner spinner(2); // Use n threads // MANIPULATED!!!!!
+  ros::AsyncSpinner spinner(1); // Use n threads // MANIPULATED!!!!!
   spinner.start();
 
   ros::waitForShutdown();

@@ -61,7 +61,10 @@ class MotionVisualizer
   void edgeDetectionImageCallback(const sensor_msgs::Image& imageEdgeDetection);
 
   // List of sensor images (for history)
-  std::vector<sensor_msgs::Image> edgeDetectionImageHistory;
+  std::vector<sensor_msgs::Image> edgeDetectionImageHistory_;
+
+  // List of Output Images (For low pass filtering)
+  std::vector<sensor_msgs::Image> outputImages_;
 
   ros::Subscriber edgeDetectionImageSubscriber_;
   ros::Publisher coloredCombinedImagePublisher_;
@@ -78,8 +81,10 @@ class MotionVisualizer
   // Trigger for low pass filtering.
   bool lpfTrigger_;
 
-  
+  // Bools for performance tests
   bool generateCombinedImage_;
+  bool getCOG_;
+  bool publishMusicTwist_;
 
 
 
