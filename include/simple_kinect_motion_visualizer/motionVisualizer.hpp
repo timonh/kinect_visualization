@@ -59,15 +59,37 @@ class MotionVisualizer
 
   // Motor Params.
   int motorMultiplier_;
+  int motorMultiplierDifferential_;
 
-  // PreLPF values
+  // PreLPF values.
   double preLPFMusicGain_;
   double oldMusicValue_;
   bool preLPFTrigger_;
 
-  // Left Right Music Value distinction
+  // PreLPF values Differential.
+  double preLPFMusicGainDifferential_;
+
+  // Left Right Music Value distinction.
   double oldMusicValueLeft_;
   double oldMusicValueRight_;
+
+  // Differential derivative calculation utils.
+  bool differentiationtrigger_;
+  double musicTwistOldNoFilter_;
+  double musicLeftOldNoFilter_;
+  double musicRightOldNoFilter_;
+
+  double musicTwistOldFiltering_;
+  double musicLeftOldFiltering_;
+  double musicRightOldFiltering_;
+
+  // Simpler Differential calculation.
+  double LPFgainSimpleDiff_;
+  double sensitivitySimpleDiff_;
+  double XOldForDiff_, YOldForDiff_, THETAOldForDiff_;
+  double XOldDiffForLPF_, YOldDiffForLPF_, THETAOldDiffForLPF_;
+  bool diffTrigger_;
+  bool diffLPFTrigger_;
 
 
   private:
@@ -87,6 +109,7 @@ class MotionVisualizer
   ros::Publisher cogPublisher_;
 
   ros::Publisher MusicValuePublisher_;
+  ros::Publisher DifferentialMusicValuePublisher_;
 
   ros::NodeHandle nodeHandle_;
 

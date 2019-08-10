@@ -53,7 +53,8 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
   coloredImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image2", 1);
   coloredCombinedImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image_combined2", 5);
 
-  MusicValuePublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("music_values", 1);
+  MusicValuePublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("music_values", 1);
+  DifferentialMusicValuePublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("music_values_differential", 1);
 
   cogPublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("cog_keyvalues", 5);
 
@@ -72,6 +73,14 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
 
 
   alternator_ = false;
+
+
+  // Trigger for dfferential Derivative calculation.
+  differentiationtrigger_ = false;
+
+  // Trigger for simple differential Derivative calculation.
+  diffTrigger_ = false;
+  diffLPFTrigger_ = false;
 }
 
 
@@ -110,10 +119,6 @@ void MotionVisualizer::edgeDetectionImageCallback(
   outputImageCombined.data.resize(4*imageEdgeDetection.data.size());
 
 
-
-
-  //cout << typeid(imageEdgeDetection.data).name() << endl;
-
   // Set number of considered images for blurring
   if (edgeDetectionImageHistory_.size() > 1) edgeDetectionImageHistory_.erase(edgeDetectionImageHistory_.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
   edgeDetectionImageHistory_.push_back(imageEdgeDetection);
@@ -149,9 +154,6 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
   for (unsigned int i = 0; i < imageEdgeDetection.data.size(); ++i){
     //outputImage.data[4*i] = imageEdgeDetection.data[i];
-
-
-
     // Get location within image: x = 0: left border, x = 1 reight border, y = 0: top, y = 0: bottom
 
 
@@ -199,7 +201,7 @@ void MotionVisualizer::edgeDetectionImageCallback(
     if (totalDifference > musicIntensityTreshold) {
         totalDifferenceMusicValue += totalDifference;
         if (pixelXAxis <= 0.5) totalDifferenceMusicValueLeft += totalDifference;
-        if (pixelXAxis > 0.5) totalDifferenceMusicValueRight += totalDifference;
+        if (pixelXAxis >= 0.5) totalDifferenceMusicValueRight += totalDifference;
     }
 
 
@@ -367,13 +369,26 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
   if (publishMusicTwist_) {
     // geometry_msgs::Twist musicTwist; // Arduino Efficiency Hack
-    geometry_msgs::Twist musicTwist;
+
+    double musicValueTotal;
 
     //if (quadraticCorrelation_) musicTwist.linear.x = max(min((float)totalDifferenceMusicValue * totalDifferenceMusicValue / (gainDivider_ * 1000000000000.0) - minusTerm_, 0.5) ,lowerBound_);
     //else musicTwist.linear.x = max(min((float)totalDifferenceMusicValue / 15000000000.0 - 0.07, 0.5) ,0.0024);
 
-    if (quadraticCorrelation_) musicTwist.linear.x = max(min((float)totalDifferenceMusicValue * totalDifferenceMusicValue / (gainDivider_ * 1000000000000.0) - minusTerm_, 0.5) ,lowerBound_);
-    else musicTwist.linear.x = max(min((float)totalDifferenceMusicValue / 15000000000.0 - 0.07, 0.5) ,lowerBound_);
+
+
+    totalDifferenceMusicValue = abs(totalDifferenceMusicValue);
+    totalDifferenceMusicValueLeft = abs(totalDifferenceMusicValueLeft);
+    totalDifferenceMusicValueRight = abs(totalDifferenceMusicValueRight);
+
+    // TODO: Removed a factor of 100 here:
+    if (quadraticCorrelation_) musicValueTotal = max(min((float)totalDifferenceMusicValue * totalDifferenceMusicValue / (gainDivider_ * 10000000000.0) - minusTerm_, 0.5) ,lowerBound_);
+    else musicValueTotal = max(min((float)totalDifferenceMusicValue / 15000000000.0 - 0.07, 0.5) ,lowerBound_);
+
+
+    std::cout << "musicValueTotal 1: " << musicValueTotal << std::endl;
+    std::cout << "DifferenceMusicValue 1 squared: " << totalDifferenceMusicValue * totalDifferenceMusicValue << std::endl;
+    // 
 
 
     //std::cout << "Music Val Tot: " << totalDifferenceMusicValue << " Left: " << totalDifferenceMusicValueLeft << " Right: " << totalDifferenceMusicValueRight << std::endl;
@@ -383,17 +398,42 @@ void MotionVisualizer::edgeDetectionImageCallback(
     totalDifferenceMusicValueLeft *= 2.0;
     totalDifferenceMusicValueRight *= 2.0;
     if (leftRight) {
-      if (quadraticCorrelation_) musicLeft = max(min((float)totalDifferenceMusicValueLeft * totalDifferenceMusicValueLeft / (gainDivider_ * 1000000000000.0) - minusTerm_, 0.5) ,lowerBound_);
+      if (quadraticCorrelation_) musicLeft = max(min((float)totalDifferenceMusicValueLeft * totalDifferenceMusicValueLeft / (gainDivider_ * 10000000000.0) - minusTerm_, 0.5) ,lowerBound_);
       else musicLeft = max(min((float)totalDifferenceMusicValueLeft / 15000000000.0 - 0.07, 0.5) ,lowerBound_);
 
-      if (quadraticCorrelation_) musicRight = max(min((float)totalDifferenceMusicValueRight * totalDifferenceMusicValueRight / (gainDivider_ * 1000000000000.0) - minusTerm_, 0.5) ,lowerBound_);
+      if (quadraticCorrelation_) musicRight = max(min((float)totalDifferenceMusicValueRight * totalDifferenceMusicValueRight / (gainDivider_ * 10000000000.0) - minusTerm_, 0.5) ,lowerBound_);
       else musicRight = max(min((float)totalDifferenceMusicValueRight / 15000000000.0 - 0.07, 0.5) ,lowerBound_);
     }
 
-    // Pre LPFing
-    if (preLPFTrigger_ == true) musicTwist.linear.x = musicTwist.linear.x * (1.0 - preLPFMusicGain_) + oldMusicValue_ * preLPFMusicGain_;
-    oldMusicValue_ = musicTwist.linear.x;
 
+    /// Differential approximation of derivative
+
+    // Check Coding rules for this
+    double musicTwistDifferential = 0.0, musicLeftDifferential = 0.0, musicRightDifferential = 0.0;
+
+    if(differentiationtrigger_) {
+      if (differentiationtrigger_) {
+          musicTwistDifferential = fabs(musicValueTotal - musicTwistOldNoFilter_);
+          musicLeftDifferential = fabs(musicLeft - musicLeftOldNoFilter_);
+          musicRightDifferential = fabs(musicRight - musicRightOldNoFilter_);
+      }
+    }
+
+    musicTwistOldNoFilter_ = musicValueTotal;
+    musicLeftOldNoFilter_ = musicLeft;
+    musicTwistOldNoFilter_ = musicRight;
+
+    if (differentiationtrigger_ == false) differentiationtrigger_ = true;
+
+    std::cout << "musicValueTotal: " << musicValueTotal << std::endl;
+
+    // Pre LPFing
+    if (preLPFTrigger_ == true) musicValueTotal = musicValueTotal * (1.0 - preLPFMusicGain_) + oldMusicValue_ * preLPFMusicGain_;
+    oldMusicValue_ = musicValueTotal;
+
+    // PreLPFing of differential version
+    if (preLPFTrigger_ == true) musicTwistDifferential = musicTwistDifferential * (1.0 - preLPFMusicGainDifferential_) + musicTwistOldFiltering_ * preLPFMusicGainDifferential_;
+    musicTwistOldFiltering_ = musicTwistDifferential;
 
 
 
@@ -403,24 +443,94 @@ void MotionVisualizer::edgeDetectionImageCallback(
         oldMusicValueLeft_ = musicLeft;
         if (preLPFTrigger_ == true) musicRight = musicRight * (1.0 - preLPFMusicGain_) + oldMusicValueRight_ * preLPFMusicGain_;
         oldMusicValueRight_ = musicRight;
+
+        //Differential Version
+        if (preLPFTrigger_ == true) musicLeftDifferential = musicLeftDifferential * (1.0 - preLPFMusicGainDifferential_) + musicLeftOldFiltering_ * preLPFMusicGainDifferential_;
+        musicLeftOldFiltering_ = musicLeftDifferential;
+        if (preLPFTrigger_ == true) musicRightDifferential = musicRightDifferential * (1.0 - preLPFMusicGainDifferential_) + musicRightOldFiltering_ * preLPFMusicGainDifferential_;
+        musicRightOldFiltering_ = musicRightDifferential;
+
     }
 
     preLPFTrigger_ = true;
 
+    //musicTwist.linear.y = max(min(3.0 * musicTwist.x, 0.5), 0.0);
+
+    geometry_msgs::Pose2D musicTwist;
 
 
 
-    musicTwist.linear.y = max(min(3.0 * musicTwist.linear.x, 0.5), 0.0);
+    musicTwist.x = (int)max(min(0 + motorMultiplier_ * (musicValueTotal - lowerBound_), 800.0), 0.0);
+    musicTwist.y = (int)max(min(0 + motorMultiplier_ * (musicLeft - lowerBound_), 800.0), 0.0);
+    musicTwist.theta = (int)max(min(0 + motorMultiplier_ * (musicRight - lowerBound_), 800.0), 0.0);
 
-    musicTwist.angular.x = (int)max(min(300 + motorMultiplier_ * (musicTwist.linear.x - lowerBound_), 1100.0), 0.0);
+    std::cout << "musicValueTotal just before publishing: " << musicValueTotal << " musicleft: " << musicLeft << " musicRight: " << musicRight << std::endl;
 
-    musicTwist.angular.y = (int)max(min(300 + motorMultiplier_ * (musicLeft - lowerBound_), 1100.0), 0.0);
-    musicTwist.angular.z = (int)max(min(300 + motorMultiplier_ * (musicRight - lowerBound_), 1100.0), 0.0);
+
+
+    // TODO: consider using output values for differential calculation..
+
+    // Ouput Values directly.
+
+    bool simpleDiffCalculation = false;
+    if (simpleDiffCalculation)
+    {
+      double diffX;
+      double diffY;
+      double diffTHETA;
+
+
+      // Diff Loop:
+      if (diffTrigger_ == true)
+      {
+        // Update START
+        diffX = fabs((musicTwist.x - XOldForDiff_) * sensitivitySimpleDiff_);
+        diffY = fabs((musicTwist.y - YOldForDiff_) * sensitivitySimpleDiff_);
+        diffTHETA = fabs((musicTwist.theta - THETAOldForDiff_) * sensitivitySimpleDiff_);
+
+        // Diff LPF Loop:
+        if (diffLPFTrigger_ == true)
+          {
+            //musicTwistDifferential.x =
+
+          }
+
+        // Assign Old LPF Diff values
+        XOldDiffForLPF_ = diffX;
+        YOldDiffForLPF_ = diffY;
+        THETAOldDiffForLPF_ = diffTHETA;
+
+
+        diffLPFTrigger_ = true;
+      }
+
+      // Assign Old values
+      XOldForDiff_ = musicTwist.x;
+      YOldForDiff_ = musicTwist.y;
+      THETAOldForDiff_ = musicTwist.theta;
+
+
+      diffTrigger_ = true;
+
+
+      // Update END
+
+    }
+    
+    bool oldDifferentialCalculation = true;
+    if (oldDifferentialCalculation)
+    {
+      geometry_msgs::Pose2D musicDifferential;
+      // TODO: Second Motor mulstiplier and second message publisher for Derivative sensitive motors.
+      musicDifferential.x = (int)max(min(0 + motorMultiplierDifferential_ * ((0.2 * musicValueTotal + 0.8 * musicTwistDifferential) - lowerBound_), 800.0), 0.0);
+      musicDifferential.y = (int)max(min(0 + motorMultiplierDifferential_ * ((0.2 * musicLeft + 0.8 * musicLeftDifferential) - lowerBound_), 800.0), 0.0);
+      musicDifferential.theta = (int)max(min(0 + motorMultiplierDifferential_ * ((0.2 * musicRight + 0.8 * musicRightDifferential) - lowerBound_), 800.0), 0.0);
+      DifferentialMusicValuePublisher_.publish(musicDifferential);
+    }
 
     MusicValuePublisher_.publish(musicTwist);
 
   }
-
 }
 
 void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
@@ -445,6 +555,7 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
   minusTerm_ = config.minusTerm;
   lowerBound_ = config.lowerBound;
   preLPFMusicGain_ = config.preLPFMusicGain;
+  preLPFMusicGainDifferential_ = config.preLPFMusicGainDifferential;
 
 
   // TODO: Add lpfIntensitythreshold
@@ -454,6 +565,9 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
 
   // Motor multiplier.
   motorMultiplier_ = config.motorMultiplier;
+
+  // Motor multiplier differential.
+  motorMultiplierDifferential_ = config.motorMultiplierDifferential;
 
 }
 
