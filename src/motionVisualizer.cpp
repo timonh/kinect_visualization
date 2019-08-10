@@ -472,7 +472,7 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
     // Ouput Values directly.
 
-    bool simpleDiffCalculation = false;
+    bool simpleDiffCalculation = true;
     if (simpleDiffCalculation)
     {
       double diffX;
@@ -483,6 +483,8 @@ void MotionVisualizer::edgeDetectionImageCallback(
       // Diff Loop:
       if (diffTrigger_ == true)
       {
+
+        // TODO: Think about thresholding the diff.
         // Update START
         diffX = fabs((musicTwist.x - XOldForDiff_) * sensitivitySimpleDiff_);
         diffY = fabs((musicTwist.y - YOldForDiff_) * sensitivitySimpleDiff_);
@@ -491,8 +493,11 @@ void MotionVisualizer::edgeDetectionImageCallback(
         // Diff LPF Loop:
         if (diffLPFTrigger_ == true)
           {
-            //musicTwistDifferential.x =
-
+            geometry_msgs::Pose2D musicSimplerDifferential;
+            musicSimplerDifferential.x = (int)max(min(LPFgainSimpleDiff_ * XOldDiffForLPF_ + (1.0 - LPFgainSimpleDiff_) * diffX, 800.0), 0.0);
+            musicSimplerDifferential.y = (int)max(min(LPFgainSimpleDiff_ * YOldDiffForLPF_ + (1.0 - LPFgainSimpleDiff_) * diffY, 800.0), 0.0);
+            musicSimplerDifferential.theta = (int)max(min(LPFgainSimpleDiff_ * THETAOldDiffForLPF_ + (1.0 - LPFgainSimpleDiff_) * diffTHETA, 800.0), 0.0);
+            DifferentialMusicValuePublisher_.publish(musicSimplerDifferential);
           }
 
         // Assign Old LPF Diff values
@@ -517,7 +522,7 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
     }
     
-    bool oldDifferentialCalculation = true;
+    bool oldDifferentialCalculation = false;
     if (oldDifferentialCalculation)
     {
       geometry_msgs::Pose2D musicDifferential;
@@ -558,6 +563,8 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
   preLPFMusicGainDifferential_ = config.preLPFMusicGainDifferential;
 
 
+
+
   // TODO: Add lpfIntensitythreshold
   lpfRedIntensityThreshold_ = config.lpfRedIntensityThreshold;
   lpfGreenIntensityThreshold_ = config.lpfGreenIntensityThreshold;
@@ -568,6 +575,10 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
 
   // Motor multiplier differential.
   motorMultiplierDifferential_ = config.motorMultiplierDifferential;
+
+  // Simpler Differential Version.
+  LPFgainSimpleDiff_ = config.LPFgainSimpleDiff;
+  sensitivitySimpleDiff_ = config.sensitivitySimpleDiff;
 
 }
 
