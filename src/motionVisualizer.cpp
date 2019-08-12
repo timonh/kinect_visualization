@@ -460,6 +460,8 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
 
 
+
+
     musicTwist.x = (int)max(min(0 + motorMultiplier_ * (musicValueTotal - lowerBound_), 800.0), 0.0);
     musicTwist.y = (int)max(min(0 + motorMultiplier_ * (musicLeft - lowerBound_), 800.0), 0.0);
     musicTwist.theta = (int)max(min(0 + motorMultiplier_ * (musicRight - lowerBound_), 800.0), 0.0);
@@ -471,6 +473,14 @@ void MotionVisualizer::edgeDetectionImageCallback(
     // TODO: consider using output values for differential calculation..
 
     // Ouput Values directly.
+
+    // Avoid saturation of basic motor speeds.
+    int motorBasicVelocityX = (int)max(0 + motorMultiplier_ * (musicValueTotal - lowerBound_), 0.0);
+    int motorBasicVelocityY = (int)max(0 + motorMultiplier_ * (musicLeft - lowerBound_), 0.0);
+    int motorBasicVelocityTHETA = (int)max(0 + motorMultiplier_ * (musicRight - lowerBound_), 0.0);
+
+    // Message to publish.
+    geometry_msgs::Pose2D musicSimplerDifferential;
 
     bool simpleDiffCalculation = true;
     if (simpleDiffCalculation)
@@ -486,18 +496,18 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
         // TODO: Think about thresholding the diff.
         // Update START
-        diffX = fabs((musicTwist.x - XOldForDiff_) * sensitivitySimpleDiff_);
-        diffY = fabs((musicTwist.y - YOldForDiff_) * sensitivitySimpleDiff_);
-        diffTHETA = fabs((musicTwist.theta - THETAOldForDiff_) * sensitivitySimpleDiff_);
+        diffX = fabs((motorBasicVelocityX - XOldForDiff_) * sensitivitySimpleDiff_);
+        diffY = fabs((motorBasicVelocityY - YOldForDiff_) * sensitivitySimpleDiff_);
+        diffTHETA = fabs((motorBasicVelocityTHETA - THETAOldForDiff_) * sensitivitySimpleDiff_);
 
         // Diff LPF Loop:
         if (diffLPFTrigger_ == true)
           {
-            geometry_msgs::Pose2D musicSimplerDifferential;
+
             musicSimplerDifferential.x = (int)max(min(LPFgainSimpleDiff_ * XOldDiffForLPF_ + (1.0 - LPFgainSimpleDiff_) * diffX, 800.0), 0.0);
             musicSimplerDifferential.y = (int)max(min(LPFgainSimpleDiff_ * YOldDiffForLPF_ + (1.0 - LPFgainSimpleDiff_) * diffY, 800.0), 0.0);
             musicSimplerDifferential.theta = (int)max(min(LPFgainSimpleDiff_ * THETAOldDiffForLPF_ + (1.0 - LPFgainSimpleDiff_) * diffTHETA, 800.0), 0.0);
-            DifferentialMusicValuePublisher_.publish(musicSimplerDifferential);
+
           }
 
         // Assign Old LPF Diff values
@@ -510,14 +520,12 @@ void MotionVisualizer::edgeDetectionImageCallback(
       }
 
       // Assign Old values
-      XOldForDiff_ = musicTwist.x;
-      YOldForDiff_ = musicTwist.y;
-      THETAOldForDiff_ = musicTwist.theta;
+      XOldForDiff_ = motorBasicVelocityX;
+      YOldForDiff_ = motorBasicVelocityY;
+      THETAOldForDiff_ = motorBasicVelocityTHETA;
 
 
       diffTrigger_ = true;
-
-
       // Update END
 
     }
@@ -533,10 +541,34 @@ void MotionVisualizer::edgeDetectionImageCallback(
       DifferentialMusicValuePublisher_.publish(musicDifferential);
     }
 
-    MusicValuePublisher_.publish(musicTwist);
 
+    // Randomize and Publish:
+    auto motorSpeedTuple = RandomSwitch(musicTwist, musicSimplerDifferential);
+    geometry_msgs::Pose2D musicTwistRandomized = std::get<0>(motorSpeedTuple);
+    geometry_msgs::Pose2D musicSimplerDifferentialRandomized = std::get<1>(motorSpeedTuple);
+
+    // Publish.
+    if (simpleDiffCalculation && diffTrigger_ && diffLPFTrigger_) DifferentialMusicValuePublisher_.publish(musicSimplerDifferentialRandomized);
+    MusicValuePublisher_.publish(musicTwistRandomized);
   }
 }
+
+
+std::tuple<geometry_msgs::Pose2D, geometry_msgs::Pose2D> MotionVisualizer::RandomSwitch(geometry_msgs::Pose2D& motionValuesBasic, geometry_msgs::Pose2D& motionValuesDifferential)
+{
+  // TODO: think about running this before low pass filtering..
+  // TODO: in certain time instances create random number based selection of entries
+
+  // If not called stick to class variable based numbers
+
+  // DR params: time in s for redist sampling. Probability for redist sampling to happen. Number of running motors x of 6
+
+  // TODO: Fill this in appropriately.
+  geometry_msgs::Pose2D pose2D1 = motionValuesBasic;
+  geometry_msgs::Pose2D pose2D2 = motionValuesDifferential;
+  return std::make_tuple(pose2D1, pose2D2);
+}
+
 
 void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
 

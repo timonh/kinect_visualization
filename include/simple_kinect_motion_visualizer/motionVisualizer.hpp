@@ -96,6 +96,9 @@ class MotionVisualizer
 
   void edgeDetectionImageCallback(const sensor_msgs::Image& imageEdgeDetection);
 
+  // Randomizer for motors running.
+  std::tuple<geometry_msgs::Pose2D, geometry_msgs::Pose2D> RandomSwitch(geometry_msgs::Pose2D& motionValuesBasic, geometry_msgs::Pose2D& motionValuesDifferential);
+
   // List of sensor images (for history)
   std::vector<sensor_msgs::Image> edgeDetectionImageHistory_;
 
@@ -124,8 +127,5 @@ class MotionVisualizer
   bool publishMusicTwist_;
 
   bool alternator_;
-
-
-
 };
 
