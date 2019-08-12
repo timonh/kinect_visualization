@@ -428,27 +428,27 @@ void MotionVisualizer::edgeDetectionImageCallback(
     std::cout << "musicValueTotal: " << musicValueTotal << std::endl;
 
     // Pre LPFing
-    if (preLPFTrigger_ == true) musicValueTotal = musicValueTotal * (1.0 - preLPFMusicGain_) + oldMusicValue_ * preLPFMusicGain_;
+    if (preLPFTrigger_ == true) musicValueTotal = musicValueTotal * (1.0 - lpfGainBasicX_) + oldMusicValue_ * lpfGainBasicX_;
     oldMusicValue_ = musicValueTotal;
 
     // PreLPFing of differential version
-    if (preLPFTrigger_ == true) musicTwistDifferential = musicTwistDifferential * (1.0 - preLPFMusicGainDifferential_) + musicTwistOldFiltering_ * preLPFMusicGainDifferential_;
-    musicTwistOldFiltering_ = musicTwistDifferential;
+    //if (preLPFTrigger_ == true) musicTwistDifferential = musicTwistDifferential * (1.0 - preLPFMusicGainDifferential_) + musicTwistOldFiltering_ * preLPFMusicGainDifferential_;
+    //musicTwistOldFiltering_ = musicTwistDifferential;
 
 
 
     // Pre LPF leftright
     if (leftRight) {
-        if (preLPFTrigger_ == true) musicLeft = musicLeft * (1.0 - preLPFMusicGain_) + oldMusicValueLeft_ * preLPFMusicGain_;
+        if (preLPFTrigger_ == true) musicLeft = musicLeft * (1.0 - lpfGainBasicY_) + oldMusicValueLeft_ * lpfGainBasicY_;
         oldMusicValueLeft_ = musicLeft;
-        if (preLPFTrigger_ == true) musicRight = musicRight * (1.0 - preLPFMusicGain_) + oldMusicValueRight_ * preLPFMusicGain_;
+        if (preLPFTrigger_ == true) musicRight = musicRight * (1.0 - lpfGainBasicTHETA_) + oldMusicValueRight_ * lpfGainBasicTHETA_;
         oldMusicValueRight_ = musicRight;
 
         //Differential Version
-        if (preLPFTrigger_ == true) musicLeftDifferential = musicLeftDifferential * (1.0 - preLPFMusicGainDifferential_) + musicLeftOldFiltering_ * preLPFMusicGainDifferential_;
-        musicLeftOldFiltering_ = musicLeftDifferential;
-        if (preLPFTrigger_ == true) musicRightDifferential = musicRightDifferential * (1.0 - preLPFMusicGainDifferential_) + musicRightOldFiltering_ * preLPFMusicGainDifferential_;
-        musicRightOldFiltering_ = musicRightDifferential;
+        //if (preLPFTrigger_ == true) musicLeftDifferential = musicLeftDifferential * (1.0 - preLPFMusicGainDifferential_) + musicLeftOldFiltering_ * preLPFMusicGainDifferential_;
+        //musicLeftOldFiltering_ = musicLeftDifferential;
+        //if (preLPFTrigger_ == true) musicRightDifferential = musicRightDifferential * (1.0 - preLPFMusicGainDifferential_) + musicRightOldFiltering_ * preLPFMusicGainDifferential_;
+        //musicRightOldFiltering_ = musicRightDifferential;
 
     }
 
@@ -460,11 +460,12 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
 
 
+    // Basic motor velocities.
+    // TODO: add individual lpfing
 
-
-    musicTwist.x = (int)max(min(0 + motorMultiplier_ * (musicValueTotal - lowerBound_), 800.0), 0.0);
-    musicTwist.y = (int)max(min(0 + motorMultiplier_ * (musicLeft - lowerBound_), 800.0), 0.0);
-    musicTwist.theta = (int)max(min(0 + motorMultiplier_ * (musicRight - lowerBound_), 800.0), 0.0);
+    musicTwist.x = (int)max(min(0 + sensitivityBasicX_ * (musicValueTotal - lowerBound_), maxVelocityBasicX_), 0.0);
+    musicTwist.y = (int)max(min(0 + sensitivityBasicY_ * (musicLeft - lowerBound_), maxVelocityBasicY_), 0.0);
+    musicTwist.theta = (int)max(min(0 + sensitivityBasicTHETA_ * (musicRight - lowerBound_), maxVelocityBasicTHETA_), 0.0);
 
     std::cout << "musicValueTotal just before publishing: " << musicValueTotal << " musicleft: " << musicLeft << " musicRight: " << musicRight << std::endl;
 
@@ -475,9 +476,9 @@ void MotionVisualizer::edgeDetectionImageCallback(
     // Ouput Values directly.
 
     // Avoid saturation of basic motor speeds.
-    int motorBasicVelocityX = (int)max(0 + motorMultiplier_ * (musicValueTotal - lowerBound_), 0.0);
-    int motorBasicVelocityY = (int)max(0 + motorMultiplier_ * (musicLeft - lowerBound_), 0.0);
-    int motorBasicVelocityTHETA = (int)max(0 + motorMultiplier_ * (musicRight - lowerBound_), 0.0);
+    int motorBasicVelocityX = (int)max(0 + sensitivityBasicX_ * (musicValueTotal - lowerBound_), 0.0);
+    int motorBasicVelocityY = (int)max(0 + sensitivityBasicY_ * (musicLeft - lowerBound_), 0.0);
+    int motorBasicVelocityTHETA = (int)max(0 + sensitivityBasicTHETA_ * (musicRight - lowerBound_), 0.0);
 
     // Message to publish.
     geometry_msgs::Pose2D musicSimplerDifferential;
@@ -496,17 +497,17 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
         // TODO: Think about thresholding the diff.
         // Update START
-        diffX = fabs((motorBasicVelocityX - XOldForDiff_) * sensitivitySimpleDiff_);
-        diffY = fabs((motorBasicVelocityY - YOldForDiff_) * sensitivitySimpleDiff_);
-        diffTHETA = fabs((motorBasicVelocityTHETA - THETAOldForDiff_) * sensitivitySimpleDiff_);
+        diffX = fabs((motorBasicVelocityX - XOldForDiff_) * sensitivityDiffX_);
+        diffY = fabs((motorBasicVelocityY - YOldForDiff_) * sensitivityDiffY_);
+        diffTHETA = fabs((motorBasicVelocityTHETA - THETAOldForDiff_) * sensitivityDiffTHETA_);
 
         // Diff LPF Loop:
         if (diffLPFTrigger_ == true)
           {
 
-            musicSimplerDifferential.x = (int)max(min(LPFgainSimpleDiff_ * XOldDiffForLPF_ + (1.0 - LPFgainSimpleDiff_) * diffX, 800.0), 0.0);
-            musicSimplerDifferential.y = (int)max(min(LPFgainSimpleDiff_ * YOldDiffForLPF_ + (1.0 - LPFgainSimpleDiff_) * diffY, 800.0), 0.0);
-            musicSimplerDifferential.theta = (int)max(min(LPFgainSimpleDiff_ * THETAOldDiffForLPF_ + (1.0 - LPFgainSimpleDiff_) * diffTHETA, 800.0), 0.0);
+            musicSimplerDifferential.x = (int)max(min(lpfGainDiffX_ * XOldDiffForLPF_ + (1.0 - lpfGainDiffX_) * diffX, maxVelocityDiffX_), 0.0);
+            musicSimplerDifferential.y = (int)max(min(lpfGainDiffY_ * YOldDiffForLPF_ + (1.0 - lpfGainDiffY_) * diffY, maxVelocityDiffY_), 0.0);
+            musicSimplerDifferential.theta = (int)max(min(lpfGainDiffTHETA_ * THETAOldDiffForLPF_ + (1.0 - lpfGainDiffTHETA_) * diffTHETA, maxVelocityDiffTHETA_), 0.0);
 
           }
 
@@ -548,8 +549,8 @@ void MotionVisualizer::edgeDetectionImageCallback(
     geometry_msgs::Pose2D musicSimplerDifferentialRandomized = std::get<1>(motorSpeedTuple);
 
     // Publish.
-    if (simpleDiffCalculation && diffTrigger_ && diffLPFTrigger_) DifferentialMusicValuePublisher_.publish(musicSimplerDifferentialRandomized);
-    MusicValuePublisher_.publish(musicTwistRandomized);
+    if (simpleDiffCalculation && diffTrigger_ && diffLPFTrigger_) DifferentialMusicValuePublisher_.publish(musicSimplerDifferential);
+    MusicValuePublisher_.publish(musicTwist);
   }
 }
 
@@ -612,6 +613,30 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
   LPFgainSimpleDiff_ = config.LPFgainSimpleDiff;
   sensitivitySimpleDiff_ = config.sensitivitySimpleDiff;
 
+  // Individual Settings.
+  sensitivityBasicX_ = config.sensitivityBasicX;
+  sensitivityBasicY_ = config.sensitivityBasicY;
+  sensitivityBasicTHETA_ = config.sensitivityBasicTHETA;
+
+  maxVelocityBasicX_ = config.maxVelocityBasicX;
+  maxVelocityBasicY_ = config.maxVelocityBasicY;
+  maxVelocityBasicTHETA_ = config.maxVelocityBasicTHETA;
+
+  lpfGainBasicX_ = config.lpfGainBasicX;
+  lpfGainBasicY_ = config.lpfGainBasicY;
+  lpfGainBasicTHETA_ = config.lpfGainBasicTHETA;
+
+  sensitivityDiffX_ = config.sensitivityDiffX;
+  sensitivityDiffY_ = config.sensitivityDiffY;
+  sensitivityDiffTHETA_ = config.sensitivityDiffTHETA;
+
+  maxVelocityDiffX_ = config.maxVelocityDiffX;
+  maxVelocityDiffY_ = config.maxVelocityDiffY;
+  maxVelocityDiffTHETA_ = config.maxVelocityDiffTHETA;
+
+  lpfGainDiffX_ = config.lpfGainDiffX;
+  lpfGainDiffY_ = config.lpfGainDiffY;
+  lpfGainDiffTHETA_ = config.lpfGainDiffTHETA;
 }
 
 

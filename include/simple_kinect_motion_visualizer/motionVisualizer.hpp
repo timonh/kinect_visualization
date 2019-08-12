@@ -91,6 +91,14 @@ class MotionVisualizer
   bool diffTrigger_;
   bool diffLPFTrigger_;
 
+  // Individual sensitivity settings:
+  double sensitivityBasicX_, sensitivityBasicY_, sensitivityBasicTHETA_,
+  sensitivityDiffX_, sensitivityDiffY_, sensitivityDiffTHETA_;
+  double maxVelocityBasicX_, maxVelocityBasicY_, maxVelocityBasicTHETA_,
+  maxVelocityDiffX_, maxVelocityDiffY_, maxVelocityDiffTHETA_;
+  double lpfGainBasicX_, lpfGainBasicY_, lpfGainBasicTHETA_,
+  lpfGainDiffX_, lpfGainDiffY_, lpfGainDiffTHETA_;
+
 
   private:
 
