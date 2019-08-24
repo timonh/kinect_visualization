@@ -140,6 +140,13 @@ void MotionVisualizer::edgeDetectionImageCallback(
   //std::cout << "edgeDetectionImageHistory__size: " << edgeDetectionImageHistory_.size() << std::endl;
 
 
+
+  // TEST for music value consistency:
+
+  ROS_INFO("This is the motor Value of THETA (right): %d", basicMotorVelocityTHETA_);
+
+
+
   int totalDifferenceMusicValue = 0;
 
   // TODO: do stuff with this.
@@ -281,6 +288,13 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
             }
         }
+
+
+        // TEST for fully coloring according to detected motion
+        //if (pixelXAxis >= 0.5 && basicMotorVelocityTHETA_ >= 30) outputImages_[1].data[4*i+2] = max(min(basicMotorVelocityTHETA_, 255), 0);
+
+
+
     }
 
 
