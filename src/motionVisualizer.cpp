@@ -50,11 +50,16 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
 
   edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizer::edgeDetectionImageCallback, this);
 
+  // Helper subscriber for frequency test, may be obsolete soon.
+  cameraInfoSubscriber_ = nodeHandle_.subscribe("/camera/rgb/camera_info", 1, &MotionVisualizer::cameraInfoCallback, this);
+
   coloredImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image2", 1);
   coloredCombinedImagePublisher_ = nodeHandle_.advertise<sensor_msgs::Image>("/colored_image_combined2", 5);
 
   MusicValuePublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("music_values", 1);
   DifferentialMusicValuePublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("music_values_differential", 1);
+
+  MusicValuePublisherForLED_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("music_values_for_led", 1);
 
   cogPublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("cog_keyvalues", 5);
 
@@ -81,6 +86,12 @@ MotionVisualizer::MotionVisualizer(ros::NodeHandle& nodeHandle)
   // Trigger for simple differential Derivative calculation.
   diffTrigger_ = false;
   diffLPFTrigger_ = false;
+
+
+  // Initialize basic motor velocity.
+  basicMotorVelocityX_ = 0;
+  basicMotorVelocityY_ = 0;
+  basicMotorVelocityTHETA_ = 0;
 }
 
 
@@ -316,7 +327,7 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
     if (false) {
       if (!isnan(cog_values.linear.x) && !isnan(cog_values.linear.y)){
-        std::cout << "got here" << std::endl;
+        //std::cout << "got here" << std::endl;
         int iResidual = 4 * round(cog_values.linear.x * outputImage.width);
         int jResidual = 4 * round(cog_values.linear.y * outputImage.height);
 
@@ -386,8 +397,8 @@ void MotionVisualizer::edgeDetectionImageCallback(
     else musicValueTotal = max(min((float)totalDifferenceMusicValue / 15000000000.0 - 0.07, 0.5) ,lowerBound_);
 
 
-    std::cout << "musicValueTotal 1: " << musicValueTotal << std::endl;
-    std::cout << "DifferenceMusicValue 1 squared: " << totalDifferenceMusicValue * totalDifferenceMusicValue << std::endl;
+    //std::cout << "musicValueTotal 1: " << musicValueTotal << std::endl;
+    //std::cout << "DifferenceMusicValue 1 squared: " << totalDifferenceMusicValue * totalDifferenceMusicValue << std::endl;
     // 
 
 
@@ -425,7 +436,7 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
     if (differentiationtrigger_ == false) differentiationtrigger_ = true;
 
-    std::cout << "musicValueTotal: " << musicValueTotal << std::endl;
+    //std::cout << "musicValueTotal: " << musicValueTotal << std::endl;
 
     // Pre LPFing
     if (preLPFTrigger_ == true) musicValueTotal = musicValueTotal * (1.0 - lpfGainBasicX_) + oldMusicValue_ * lpfGainBasicX_;
@@ -461,13 +472,19 @@ void MotionVisualizer::edgeDetectionImageCallback(
 
 
     // Basic motor velocities.
-    // TODO: add individual lpfing
 
-    musicTwist.x = (int)max(min(0 + sensitivityBasicX_ * (musicValueTotal - lowerBound_), maxVelocityBasicX_), 0.0);
-    musicTwist.y = (int)max(min(0 + sensitivityBasicY_ * (musicLeft - lowerBound_), maxVelocityBasicY_), 0.0);
-    musicTwist.theta = (int)max(min(0 + sensitivityBasicTHETA_ * (musicRight - lowerBound_), maxVelocityBasicTHETA_), 0.0);
 
-    std::cout << "musicValueTotal just before publishing: " << musicValueTotal << " musicleft: " << musicLeft << " musicRight: " << musicRight << std::endl;
+    basicMotorVelocityX_ = (int)fmax(fmin(0 + sensitivityBasicX_ * (musicValueTotal - lowerBound_), maxVelocityBasicX_), 0.0);
+    basicMotorVelocityY_ = (int)fmax(fmin(0 + sensitivityBasicY_ * (musicLeft - lowerBound_), maxVelocityBasicY_), 0.0);
+    basicMotorVelocityTHETA_ = (int)fmax(fmin(0 + sensitivityBasicTHETA_ * (musicRight - lowerBound_), maxVelocityBasicTHETA_), 0.0);
+
+    musicTwist.x = basicMotorVelocityX_;
+    musicTwist.y = basicMotorVelocityY_;
+    musicTwist.theta = basicMotorVelocityTHETA_;
+
+
+
+    //std::cout << "musicTwist just before publishing: " << musicTwist.x << " musicleft: " << musicTwist.y << " musicRight: " << musicTwist.theta << std::endl;
 
 
 
@@ -501,20 +518,30 @@ void MotionVisualizer::edgeDetectionImageCallback(
         diffY = fabs((motorBasicVelocityY - YOldForDiff_) * sensitivityDiffY_);
         diffTHETA = fabs((motorBasicVelocityTHETA - THETAOldForDiff_) * sensitivityDiffTHETA_);
 
+        //ROS_INFO("diffX: %f diffY: %f diffTHETA: %f", diffX, diffY, diffTHETA);
+
         // Diff LPF Loop:
         if (diffLPFTrigger_ == true)
-          {
+        {
+          // TODO: single steps to check outputs..
+          musicSimplerDifferential.x = (int)fmax(fmin(lpfGainDiffX_ * XOldDiffForLPF_ + (1.0 - lpfGainDiffX_) * diffX, maxVelocityDiffX_), 0.0);
+          musicSimplerDifferential.y = (int)fmax(fmin(lpfGainDiffY_ * YOldDiffForLPF_ + (1.0 - lpfGainDiffY_) * diffY, maxVelocityDiffY_), 0.0);
+          musicSimplerDifferential.theta = (int)fmax(fmin(lpfGainDiffTHETA_ * THETAOldDiffForLPF_ + (1.0 - lpfGainDiffTHETA_) * diffTHETA, maxVelocityDiffTHETA_), 0.0);
+          //ROS_WARN("diffvelx: %f, diffvely: %f, diffveltheta: %f", musicSimplerDifferential.x, musicSimplerDifferential.y, musicSimplerDifferential.theta);
+          //ROS_WARN("lpfGainDiffX: %f, lpfGainDiffY: %f, lpfGainDiffTHETA: %f", lpfGainDiffX_, lpfGainDiffY_, lpfGainDiffTHETA_);
+          //ROS_WARN("XOLDDIFFFORLPF minus diffX: %f,, XOldDiffForLPF: %f, diffX: %f", XOldDiffForLPF_ - diffX, XOldDiffForLPF_ ,diffX);
 
-            musicSimplerDifferential.x = (int)max(min(lpfGainDiffX_ * XOldDiffForLPF_ + (1.0 - lpfGainDiffX_) * diffX, maxVelocityDiffX_), 0.0);
-            musicSimplerDifferential.y = (int)max(min(lpfGainDiffY_ * YOldDiffForLPF_ + (1.0 - lpfGainDiffY_) * diffY, maxVelocityDiffY_), 0.0);
-            musicSimplerDifferential.theta = (int)max(min(lpfGainDiffTHETA_ * THETAOldDiffForLPF_ + (1.0 - lpfGainDiffTHETA_) * diffTHETA, maxVelocityDiffTHETA_), 0.0);
+          XOldDiffForLPF_ = musicSimplerDifferential.x;
+          YOldDiffForLPF_ = musicSimplerDifferential.y;
+          THETAOldDiffForLPF_ = musicSimplerDifferential.theta;
+        }
 
-          }
-
+        if (!diffLPFTrigger_) {
         // Assign Old LPF Diff values
-        XOldDiffForLPF_ = diffX;
-        YOldDiffForLPF_ = diffY;
-        THETAOldDiffForLPF_ = diffTHETA;
+        XOldDiffForLPF_ = 0.0;
+        YOldDiffForLPF_ = 0.0;
+        THETAOldDiffForLPF_ = 0.0;
+        }
 
 
         diffLPFTrigger_ = true;
@@ -639,6 +666,18 @@ void MotionVisualizer::drCallback(simple_kinect_motion_visualizer::Visualization
   lpfGainDiffTHETA_ = config.lpfGainDiffTHETA;
 }
 
+void MotionVisualizer::cameraInfoCallback(const sensor_msgs::CameraInfo& cameraInfo)
+{
+    geometry_msgs::Pose2D valuesForLED;
+    valuesForLED.x = 0.8 * OldLEDlpfX_ + 0.2 * basicMotorVelocityX_;
+    valuesForLED.y = 0.8 * OldLEDlpfY_ + 0.2 * basicMotorVelocityY_;
+    valuesForLED.theta = 0.8 * OldLEDlpfTHETA_ + 0.2 * basicMotorVelocityTHETA_;
+
+    OldLEDlpfX_ = valuesForLED.x;
+    OldLEDlpfY_ = valuesForLED.y;
+    OldLEDlpfTHETA_ = valuesForLED.theta;
+    MusicValuePublisherForLED_.publish(valuesForLED);
+}
 
 MotionVisualizer::~MotionVisualizer()
 {

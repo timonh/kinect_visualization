@@ -9,6 +9,7 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/CameraInfo.h"
 
 #include <dynamic_reconfigure/server.h>
 #include "geometry_msgs/Twist.h"
@@ -99,10 +100,17 @@ class MotionVisualizer
   double lpfGainBasicX_, lpfGainBasicY_, lpfGainBasicTHETA_,
   lpfGainDiffX_, lpfGainDiffY_, lpfGainDiffTHETA_;
 
+  // Helpers for secondary lpf of LED values.
+  double OldLEDlpfX_, OldLEDlpfY_, OldLEDlpfTHETA_;
+
+  // Storage for calculated motor velocity values
+  int basicMotorVelocityX_, basicMotorVelocityY_, basicMotorVelocityTHETA_;
 
   private:
 
   void edgeDetectionImageCallback(const sensor_msgs::Image& imageEdgeDetection);
+
+  void cameraInfoCallback(const sensor_msgs::CameraInfo& CameraInfo);
 
   // Randomizer for motors running.
   std::tuple<geometry_msgs::Pose2D, geometry_msgs::Pose2D> RandomSwitch(geometry_msgs::Pose2D& motionValuesBasic, geometry_msgs::Pose2D& motionValuesDifferential);
@@ -121,6 +129,10 @@ class MotionVisualizer
 
   ros::Publisher MusicValuePublisher_;
   ros::Publisher DifferentialMusicValuePublisher_;
+  ros::Publisher MusicValuePublisherForLED_;
+
+  // Helper subscriber to publish in different frequency within the same node.
+  ros::Subscriber cameraInfoSubscriber_;
 
   ros::NodeHandle nodeHandle_;
 
