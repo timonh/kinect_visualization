@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   dynamic_reconfigure
+  cv_bridge
 )
 
 find_package(Qt5Widgets)
@@ -167,15 +168,19 @@ include_directories(
 add_library(${PROJECT_NAME}_library
   src/motionVisualizer.cpp
   src/gravityEffector.cpp
+  src/motionVisualizerDrums.cpp
 )
 
 add_executable(
   motionVisualizerNode src/motionVisualizerNode.cpp
-
 )
 
 add_executable(
   gravityEffectorNode src/gravityEffectorNode.cpp
+)
+
+add_executable(
+  motionVisualizerDrumsNode src/motionVisualizerDrumsNode.cpp
 )
 
 
@@ -221,6 +226,15 @@ target_link_libraries(gravityEffectorNode
   ${catkin_LIBRARIES}
   ${PROJECT_NAME}_library
 
+)
+
+target_link_libraries(motionVisualizerDrumsNode
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}_library
+  Qt5::Widgets
+  Qt5::Xml
+  Qt5::Core
+  Qt5::Gui
 )
 
 #target_link_libraries(motionVisualizer
