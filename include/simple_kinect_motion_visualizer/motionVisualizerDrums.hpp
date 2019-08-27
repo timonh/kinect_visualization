@@ -103,6 +103,9 @@ class MotionVisualizerDrums
 
   // 18 Fields Motor velocity.
   int basicMotorVelocityInFieldsArray_[18];
+  bool drumActivationInFieldsArray_[18];
+  bool drumActivationInFieldsArrayOld_[18];
+  int colorizationIntensityArray_[18];
 
   // Helpers for secondary lpf of LED values.
   double OldLEDlpfX_, OldLEDlpfY_, OldLEDlpfTHETA_;
@@ -128,6 +131,9 @@ class MotionVisualizerDrums
   ros::Subscriber edgeDetectionImageSubscriber_;
   ros::Publisher coloredCombinedImagePublisher_;
   ros::Publisher coloredImagePublisher_;
+
+  // Drum Message Publisher.
+  ros::Publisher drumMessagePublisher_;
 
   ros::Publisher cogPublisher_;
 

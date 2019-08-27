@@ -61,6 +61,8 @@ MotionVisualizerDrums::MotionVisualizerDrums(ros::NodeHandle& nodeHandle)
 
   MusicValuePublisherForLED_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("music_values_for_led", 1);
 
+  drumMessagePublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("/motion_visualizer/drum_triggers", 1);
+
   //cogPublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("cog_keyvalues", 5);
 
   // Trigger for low pass filter.
@@ -92,6 +94,21 @@ MotionVisualizerDrums::MotionVisualizerDrums(ros::NodeHandle& nodeHandle)
   basicMotorVelocityX_ = 0;
   basicMotorVelocityY_ = 0;
   basicMotorVelocityTHETA_ = 0;
+
+  // Initialize the drum activation array to 0.
+
+  for (unsigned int i = 0; i < 18; ++i) {
+      drumActivationInFieldsArray_[i] = false;
+      drumActivationInFieldsArrayOld_[i] = false;
+      colorizationIntensityArray_[i] = 0;
+  }
+  //memset(drumActivationInFieldsArray_, 0, sizeof(drumActivationInFieldsArray_));
+  //memset(drumActivationInFieldsArrayOld_, 0, sizeof(drumActivationInFieldsArrayOld_));
+  //memset(colorizationIntensityArray_, 0, sizeof(colorizationIntensityArray_));
+
+  //drumActivationInFieldsArray_[] = {};
+  //drumActivationInFieldsArrayOld_[] = {};
+
 }
 
 
@@ -271,13 +288,16 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
 
         // TEST for fully coloring according to detected motion
-        for (unsigned int k = 0; k < 18; ++k) {
-          if (fieldNumber == k && basicMotorVelocityInFieldsArray_[k] >= 30) outputImages_[1].data[4*i+2] = max(min(basicMotorVelocityInFieldsArray_[k], 255), 0);
-        }
+        outputImages_[1].data[4*i+2] = max(min(colorizationIntensityArray_[fieldNumber], 255), 0);
+
+
+
+
 
 
 
     }
+
 
 
 
@@ -305,6 +325,10 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
     //}
 
   }
+
+  // Fade out coloring intensity.
+
+
 
   //! TODO: Add nan check!
 
@@ -476,8 +500,44 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
     //int basicMotorVelocityInFieldsArray[18] = {};
 
+    int activationThreshold = 250; // To be dynamically reconfigured!!! TODO
+
     for (unsigned int k = 0; k < 18; ++k) {
-        basicMotorVelocityInFieldsArray_[k] = (int)fmax(fmin(0 + sensitivityBasicTHETA_ * (musicTriggerValuesInFieldsArray[k] - lowerBound_), maxVelocityBasicTHETA_), 0.0);
+        // Attention hacked a factor 1/4.
+        basicMotorVelocityInFieldsArray_[k] = (int)fmax(fmin(0 + sensitivityBasicTHETA_ * (musicTriggerValuesInFieldsArray[k]/3.0 - lowerBound_), maxVelocityBasicTHETA_), 0.0);
+        //std::cout << "Drum activation: " <<
+        if (basicMotorVelocityInFieldsArray_[k] >= activationThreshold && drumActivationInFieldsArray_[k] == false) {
+            drumActivationInFieldsArray_[k] = true;
+            //std::cout << "Ever got here? is it a coloring issue? " << basicMotorVelocityInFieldsArray_[k] << std::endl;
+        }
+    }
+
+    // TODO: Eventually just one loop.
+
+    // Field activation and release.
+    for (unsigned int k = 0; k < 18; ++k) {
+      //std::cout << "Ever got here? is it a coloring issue? " << basicMotorVelocityInFieldsArray_[k] << std::endl;
+      // Case Drum just activated.
+      if (drumActivationInFieldsArray_[k] == true && drumActivationInFieldsArrayOld_[k] == false){
+          //std::cout << "Ever got here? is it a coloring issue? " << std::endl;
+          colorizationIntensityArray_[k] = 255;
+          // Here send a message to the Drum Machine.
+          geometry_msgs::Pose2D drumMsg;
+          drumMsg.x = k;
+          drumMessagePublisher_.publish(drumMsg);
+      }
+      // Decrease if it was activated before.
+      if (drumActivationInFieldsArray_[k] == true && drumActivationInFieldsArrayOld_[k] == true) colorizationIntensityArray_[k] -= 25;
+      if (colorizationIntensityArray_[k] <= 0) {
+          colorizationIntensityArray_[k] = 0; // RELEASE THE BLOCKING OF THE FIELD
+          drumActivationInFieldsArray_[k] = false;
+      }
+
+      //if (drumActivationInFieldsArray_[k] == false)
+
+      // Store previous data for next round.
+      drumActivationInFieldsArrayOld_[k] = drumActivationInFieldsArray_[k];
+
     }
 
     basicMotorVelocityX_ = (int)fmax(fmin(0 + sensitivityBasicX_ * (musicValueTotal - lowerBound_), maxVelocityBasicX_), 0.0);
@@ -585,6 +645,12 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
     if (simpleDiffCalculation && diffTrigger_ && diffLPFTrigger_) DifferentialMusicValuePublisher_.publish(musicSimplerDifferential);
     MusicValuePublisher_.publish(musicTwist);
   }
+
+
+
+
+
+
 }
 
 
