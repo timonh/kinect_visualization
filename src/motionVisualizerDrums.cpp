@@ -223,7 +223,7 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
         totalDifferenceMusicValue += totalDifference;
         if (pixelXAxis <= 0.5) totalDifferenceMusicValueLeft += totalDifference;
         if (pixelXAxis >= 0.5) totalDifferenceMusicValueRight += totalDifference;
-        differenceValueInFieldsArray[fieldNumber] += totalDifference;
+        differenceValueInFieldsArray[fieldNumber-1] += totalDifference;
     }
 
     // Low pass filtering step.
@@ -288,7 +288,7 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
 
         // TEST for fully coloring according to detected motion
-        outputImages_[1].data[4*i+2] = max(min(colorizationIntensityArray_[fieldNumber], 255), 0);
+        outputImages_[1].data[4*i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
 
 
 

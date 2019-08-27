@@ -1,0 +1,9 @@
+include/simple_kinect_motion_visualizer/gravityEffector.hpp
+include/simple_kinect_motion_visualizer/motionVisualizer.hpp
+include/simple_kinect_motion_visualizer/motionVisualizerDrums.hpp
+src/gravityEffector.cpp
+src/gravityEffectorNode.cpp
+src/motionVisualizer.cpp
+src/motionVisualizerDrums.cpp
+src/motionVisualizerDrumsNode.cpp
+src/motionVisualizerNode.cpp
