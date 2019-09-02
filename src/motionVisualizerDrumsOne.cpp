@@ -45,12 +45,8 @@ MotionVisualizerDrums::MotionVisualizerDrums(ros::NodeHandle& nodeHandle)
 
   std::string topic_name;
   bool depth_image = false;
-  bool mono_image = true;
   if (depth_image) topic_name = "/camera/depth/image_raw";
-  else if (mono_image) topic_name = "/camera/rgb/image_mono";
   else topic_name = "/edge_detection/image";
-
-
 
   edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizerDrums::edgeDetectionImageCallback, this);
 
@@ -116,9 +112,6 @@ MotionVisualizerDrums::MotionVisualizerDrums(ros::NodeHandle& nodeHandle)
   // Initialize the timers.
   newDrumTriggerTime_ = ros::Time::now().toSec();
   oldDrumTriggerTime_ = ros::Time::now().toSec();
-
-  // Chose if applying lpfing for image.
-  applyLPF_ = false;
 }
 
 
@@ -250,7 +243,6 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
               if (!fast){
                 outputImages_[1].data[4*i] = fmin(255, redGain_ * totalDifference);
                 //if (totalDifference <= redIntensityThreshold_) outputImages_[1].data[4*i] = 0;
-                if (applyLPF_) {
 
                 if (outputImages_[1].data[4*i] <= lpfRedIntensityThreshold_ && outputImages_[0].data[4*i] <= lpfRedIntensityThreshold_) outputImages_[1].data[4*i] = 0;
                 else {
@@ -263,12 +255,9 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
                           outputImages_[1].data[4*i] = (1-redlpfGainDown_) * outputImages_[1].data[4*i] + redlpfGainDown_ * outputImages_[0].data[4*i];
                     }
                 }
-                }
 
                 outputImages_[1].data[4*i+1] = fmin(255, greenGain_ * totalDifference);
                 //if (totalDifference <= greenIntensityThreshold_) outputImages_[1].data[4*i+1] = 0;
-
-                if (applyLPF_) {
                 if (outputImages_[1].data[4*i+1] <= lpfGreenIntensityThreshold_ && outputImages_[0].data[4*i+1] <= lpfGreenIntensityThreshold_) outputImages_[1].data[4*i+1] = 0;
                 else {
                     if (fabs(outputImages_[1].data[4*i+1] - outputImages_[0].data[4*i+1]) <= lpfGreenIntensityThreshold_) outputImages_[1].data[4*i+1] = outputImages_[0].data[4*i+1];
@@ -280,12 +269,10 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
                           outputImages_[1].data[4*i+1] = (1-greenlpfGainDown_) * outputImages_[1].data[4*i+1] + greenlpfGainDown_ * outputImages_[0].data[4*i+1];
                     }
                 }
-                }
 
                 outputImages_[1].data[4*i+2] = fmin(255, blueGain_ * totalDifference);
                 //if (totalDifference <= blueIntensityThreshold_) outputImages_[1].data[4*i+2] = 0;
 
-                if (applyLPF_) {
                 if (outputImages_[1].data[4*i+2] <= lpfBlueIntensityThreshold_ && outputImages_[0].data[4*i+2] <= lpfBlueIntensityThreshold_) outputImages_[1].data[4*i+2] = 0;
                 else {
                     if (fabs(outputImages_[1].data[4*i+2] - outputImages_[0].data[4*i+2]) <= lpfBlueIntensityThreshold_) outputImages_[1].data[4*i+2] = outputImages_[0].data[4*i+2];
@@ -296,7 +283,6 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
                         else
                           outputImages_[1].data[4*i+2] = (1-bluelpfGainDown_) * outputImages_[1].data[4*i+2] + bluelpfGainDown_ * outputImages_[0].data[4*i+2];
                     }
-                }
                 }
               }
 
@@ -548,7 +534,7 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
           drumMessagePublisher_.publish(drumMsg);
       }
       // Decrease if it was activated before.
-      if (drumActivationInFieldsArray_[k] == true && drumActivationInFieldsArrayOld_[k] == true) colorizationIntensityArray_[k] -= 40;
+      if (drumActivationInFieldsArray_[k] == true && drumActivationInFieldsArrayOld_[k] == true) colorizationIntensityArray_[k] -= 25;
       if (colorizationIntensityArray_[k] <= 0) {
           colorizationIntensityArray_[k] = 0; // RELEASE THE BLOCKING OF THE FIELD
           drumActivationInFieldsArray_[k] = false;
@@ -674,8 +660,6 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
     if (simpleDiffCalculation && diffTrigger_ && diffLPFTrigger_) DifferentialMusicValuePublisher_.publish(musicSimplerDifferential);
     MusicValuePublisher_.publish(musicTwist);
   }
-
-
 
 
 

@@ -107,11 +107,17 @@ class MotionVisualizerDrums
   bool drumActivationInFieldsArrayOld_[18];
   int colorizationIntensityArray_[18];
 
+  // Timing for Drum triggereing tests.
+  double newDrumTriggerTime_;
+  double oldDrumTriggerTime_;
+
   // Helpers for secondary lpf of LED values.
   double OldLEDlpfX_, OldLEDlpfY_, OldLEDlpfTHETA_;
 
   // Storage for calculated motor velocity values
   int basicMotorVelocityX_, basicMotorVelocityY_, basicMotorVelocityTHETA_;
+
+
 
   private:
 
@@ -157,5 +163,8 @@ class MotionVisualizerDrums
   bool publishMusicTwist_;
 
   bool alternator_;
+
+  // Chose if applying LPFing (potentially increasing rate)
+  bool applyLPF_;
 };
 
