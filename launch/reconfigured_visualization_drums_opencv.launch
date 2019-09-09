@@ -1,6 +1,6 @@
 <launch>
 
-  <node name="motionVisualizerDrumsNode" pkg="simple_kinect_motion_visualizer" type="motionVisualizerDrumsNode" output="screen"/>
+  <node name="motionVisualizerDrumsOpenCVNode" pkg="simple_kinect_motion_visualizer" type="motionVisualizerDrumsOpenCVNode" output="screen"/>
 
   <node name="rqt_reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
 

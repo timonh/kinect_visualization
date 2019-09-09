@@ -25,9 +25,10 @@
 #include "std_msgs/String.h"
 #include <cv_bridge/cv_bridge.h>
 //#include "effects/builtin/filtereffect.h"
+//#include <image_transport/image_transport.h>
 
 
-#include "simple_kinect_motion_visualizer/motionVisualizerDrums.hpp"
+#include "simple_kinect_motion_visualizer/motionVisualizerDrumsOpenCV.hpp"
 
 using namespace std;
 //using namespace grid_map;
@@ -38,7 +39,7 @@ using namespace std;
 //using namespace kindr_ros;
 
 
-MotionVisualizerDrums::MotionVisualizerDrums(ros::NodeHandle& nodeHandle)
+MotionVisualizerDrumsOpenCV::MotionVisualizerDrumsOpenCV(ros::NodeHandle& nodeHandle)
     : nodeHandle_(nodeHandle)
 {
   ROS_INFO("Motion visualization node for Drum Machine started.");
@@ -46,13 +47,19 @@ MotionVisualizerDrums::MotionVisualizerDrums(ros::NodeHandle& nodeHandle)
   std::string topic_name;
   bool depth_image = false;
   bool mono_image = true;
-  if (depth_image) topic_name = "/camera/depth/image_raw";
+  if (depth_image) topic_name = "/camera/depth/image";
   else if (mono_image) topic_name = "/camera/rgb/image_mono";
   else topic_name = "/edge_detection/image";
 
 
+  // Image transport
+  //image_transport::ImageTransport it(nodeHandle_);
 
-  edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizerDrums::edgeDetectionImageCallback, this);
+  //inputImageSubscriber_ = it.subscribe(topic_name, 1, &MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback, this);
+
+
+
+  edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback, this);
 
   // Helper subscriber for frequency test, may be obsolete soon.
   //cameraInfoSubscriber_ = nodeHandle_.subscribe("/camera/rgb/camera_info", 1, &MotionVisualizerDrums::cameraInfoCallback, this);
@@ -65,7 +72,9 @@ MotionVisualizerDrums::MotionVisualizerDrums(ros::NodeHandle& nodeHandle)
 
   MusicValuePublisherForLED_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("music_values_for_led", 1);
 
+  //std::cout << "before 1" << std::endl;
   drumMessagePublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("/motion_visualizer/drum_triggers", 1);
+  //std::cout << "after 1" << std::endl;
 
   //cogPublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("cog_keyvalues", 5);
 
@@ -101,7 +110,7 @@ MotionVisualizerDrums::MotionVisualizerDrums(ros::NodeHandle& nodeHandle)
 
   // Initialize the drum activation array to 0.
 
-  for (unsigned int i = 0; i < 18; ++i) {
+  for (unsigned int i = 0; i < 144; ++i) {
       drumActivationInFieldsArray_[i] = false;
       drumActivationInFieldsArrayOld_[i] = false;
       colorizationIntensityArray_[i] = 0;
@@ -122,8 +131,8 @@ MotionVisualizerDrums::MotionVisualizerDrums(ros::NodeHandle& nodeHandle)
 }
 
 
-void MotionVisualizerDrums::edgeDetectionImageCallback(
-    const sensor_msgs::Image& imageEdgeDetection)
+void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
+    const sensor_msgs::ImageConstPtr& imageEdgeDetection)
 {
   //ROS_INFO("Image encoding: %s", imageEdgeDetection.encoding.c_str());
   //ROS_INFO("200 entry data: %d", imageEdgeDetection.data[1000]);
@@ -137,19 +146,18 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
   //outputImage.header = imageEdgeDetection.header;
   //outputImage.data.resize(4*imageEdgeDetection.data.size());
 
-
-
-
   sensor_msgs::Image outputImage;
   outputImage.encoding = "rgba8";
-  outputImage.width = imageEdgeDetection.width;
-  outputImage.height = imageEdgeDetection.height;
-  outputImage.step = imageEdgeDetection.step * 4;
-  outputImage.is_bigendian = imageEdgeDetection.is_bigendian;
-  outputImage.header = imageEdgeDetection.header;
-  outputImage.data.resize(4*imageEdgeDetection.data.size());
+  outputImage.width = imageEdgeDetection->width;
+  outputImage.height = imageEdgeDetection->height;
+  outputImage.step = imageEdgeDetection->step * 4;
+  outputImage.is_bigendian = imageEdgeDetection->is_bigendian;
+  outputImage.header = imageEdgeDetection->header;
+  outputImage.data.resize(4*imageEdgeDetection->data.size());
 
 
+
+  //std::cout << "width: " << imageEdgeDetection->width << "height: " << imageEdgeDetection->height << "Encoding: " << imageEdgeDetection->encoding << std::endl;
 
   //sensor_msgs::Image outputImageCombined;
   //outputImageCombined.encoding = "rgba8";
@@ -163,7 +171,7 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
   // Set number of considered images for blurring
   if (edgeDetectionImageHistory_.size() > 1) edgeDetectionImageHistory_.erase(edgeDetectionImageHistory_.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
-  edgeDetectionImageHistory_.push_back(imageEdgeDetection);
+  edgeDetectionImageHistory_.push_back(*imageEdgeDetection);
 
   if (outputImages_.size() > 1) outputImages_.erase(outputImages_.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
   outputImages_.push_back(outputImage);
@@ -201,27 +209,75 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
 
   // Vector of Difference Values for each field.
-  int differenceValueInFieldsArray[18] = {};
+  int differenceValueInFieldsArray[144] = {};
 
 
+  //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN" << std::endl;
 
-  for (unsigned int i = 0; i < imageEdgeDetection.data.size(); ++i){
+  for (unsigned int i = 0; i < imageEdgeDetection->data.size(); ++i){
     //outputImage.data[4*i] = imageEdgeDetection.data[i];
     // Get location within image: x = 0: left border, x = 1 reight border, y = 0: top, y = 0: bottom
 
-    double pixelXAxis = double(i % imageEdgeDetection.width) / (double)imageEdgeDetection.width;
+    double pixelXAxis = double(i % imageEdgeDetection->width) / (double)imageEdgeDetection->width;
     //double pixelYAxis = double(floor(i / imageEdgeDetection.width)+1) / (double)imageEdgeDetection.height;
-    double pixelYAxis = double(floor((double)i / (double)imageEdgeDetection.width)) / (double)imageEdgeDetection.height;
+    double pixelYAxis = double(floor((double)i / (double)imageEdgeDetection->width)) / (double)imageEdgeDetection->height;
 
 
     //std::cout << "YAxis: " << pixelYAxis << std::endl;
 
-    // 6 Columns
-    int fieldX = floor(pixelXAxis * 6.0) + 1;
-    // 3 Rows
-    int fieldY = floor(pixelYAxis * 3.0) + 1;
 
-    int fieldNumber = (fieldY - 1) * 6 + fieldX;
+    // Version: Tiny fields at left hand corner.
+
+
+    int fieldXTinyLeft, fieldYTinyLeft, fieldXTinyRight, fieldYTinyRight;
+    int fieldNumberTiny;
+
+
+
+    // Numbers to chose (DynRec!)
+    double widthSideStripes = 1.0/3.0;
+    int noHorizontalFieldsInSideStripes = 6;
+    int noVerticalFieldsInSideStripes = 12;
+    int fieldNumber = 0;
+    bool useTinyAdjustable = true;
+    bool noField = true;
+
+
+    //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 222222" << std::endl;
+
+    if (useTinyAdjustable)
+    {
+      // LEFT THIRD:
+      if (pixelXAxis <= widthSideStripes)
+      {
+        fieldXTinyLeft = floor(pixelXAxis * noHorizontalFieldsInSideStripes * (1.0/widthSideStripes)) + 1;
+        fieldYTinyLeft = floor(pixelYAxis * noVerticalFieldsInSideStripes) + 1;
+        fieldNumber = fieldXTinyLeft + (fieldYTinyLeft - 1) * noHorizontalFieldsInSideStripes;
+        noField = false;
+      }
+
+      // RIGHT THIRD:
+      if (pixelXAxis > 1 - widthSideStripes)
+      {
+        fieldXTinyRight = floor((pixelXAxis - (1 - widthSideStripes)) * noHorizontalFieldsInSideStripes * (1.0/widthSideStripes)) + 1;
+        fieldYTinyRight = floor(pixelYAxis * noVerticalFieldsInSideStripes) + 1;
+        //std::cout << "FieldX: " << fieldXTinyRight << " fieldy " << fieldYTinyRight << std::endl;
+        fieldNumber = fieldXTinyRight + (fieldYTinyRight - 1) * noHorizontalFieldsInSideStripes + noHorizontalFieldsInSideStripes * noVerticalFieldsInSideStripes;
+        noField = false;
+      }
+    }
+
+    else {
+      // 6 Columns
+      int fieldX = floor(pixelXAxis * 6.0) + 1;
+      // 3 Rows
+      int fieldY = floor(pixelYAxis * 3.0) + 1;
+
+      fieldNumber = (fieldY - 1) * 6 + fieldX;
+      noField = false;
+    }
+
+    //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 33333" << std::endl;
 
     //std::cout << "This is the field Number: " << fieldNumber << std::endl;
 
@@ -236,17 +292,21 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
     int totalDifference = 0;
     bool fast = false;
 
-    for(unsigned int j = 0; j < edgeDetectionImageHistory_.size()-1; ++j){
 
+    std::cout << "Edge Detection image history size: " << edgeDetectionImageHistory_.size() << std::endl;
+
+    for(unsigned int j = 0; j < edgeDetectionImageHistory_.size()-1; ++j){
       totalDifference += fabs(edgeDetectionImageHistory_[j].data[i] - edgeDetectionImageHistory_[j+1].data[i]);
     }
+
+    //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 55555" << std::endl;
 
     int musicIntensityTreshold = 50;
     if (totalDifference > musicIntensityTreshold) {
         totalDifferenceMusicValue += totalDifference;
         if (pixelXAxis <= 0.5) totalDifferenceMusicValueLeft += totalDifference;
         if (pixelXAxis >= 0.5) totalDifferenceMusicValueRight += totalDifference;
-        differenceValueInFieldsArray[fieldNumber-1] += totalDifference;
+        if (!noField) differenceValueInFieldsArray[fieldNumber-1] += totalDifference;
     }
 
     // Low pass filtering step.
@@ -315,10 +375,16 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
             }
         }
+        //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 55555" << std::endl;
 
 
         // TEST for fully coloring according to detected motion
-        outputImages_[1].data[4*i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+        if (!noField) {
+          if ((fieldNumber-1) % 14 == 0) outputImages_[1].data[4*i+1] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+          else if ((fieldNumber-1) % 13 == 0) outputImages_[1].data[4*i] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+          else outputImages_[1].data[4*i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+        }
+        //if (fieldNumber % 12 == 0) outputImages_[1].data[4*i+1] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
 
 
 
@@ -355,7 +421,7 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
     //}
 
   }
-
+  //std::cout << "BIS HIN BIN ICH NOCH EASY GEKOMMEN 2" << std::endl;
   // Fade out coloring intensity.
 
 
@@ -420,9 +486,14 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
 
 
+  //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 3 size of output images list: " << outputImages_.size() << std::endl;
   if (outputImages_.size() > 1) {
+    //std::cout << "before 3" << std::endl;
     coloredImagePublisher_.publish(outputImages_[1]);
+    //std::cout << "after 3" << std::endl;
   }
+
+  //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 4" << std::endl;
 
 
   // Option to publish the combined image.
@@ -464,12 +535,13 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
 
     // Get Music value for each Field
-    double musicTriggerValuesInFieldsArray[18] = {};
+    double musicTriggerValuesInFieldsArray[144] = {};
     // Take absolute values (just for security).
-    for (unsigned int k = 0; k < 18; ++k){
-        differenceValueInFieldsArray[k] = abs(18.0 * differenceValueInFieldsArray[k]);
+    for (unsigned int k = 0; k < 144; ++k){
+        differenceValueInFieldsArray[k] = abs(144.0 * differenceValueInFieldsArray[k]);
         if (quadraticCorrelation_) musicTriggerValuesInFieldsArray[k] = max(min((float)differenceValueInFieldsArray[k] * differenceValueInFieldsArray[k] / (gainDivider_ * 10000000000.0) - minusTerm_, 0.5) ,lowerBound_);
         else musicTriggerValuesInFieldsArray[k] = max(min((float)differenceValueInFieldsArray[k] / 15000000000.0 - 0.07, 0.5) ,lowerBound_);
+        //differenceValueInFieldsArray[k] = abs(18.0 * differenceValueInFieldsArray[k]);
     }
 
     /// Differential approximation of derivative
@@ -524,7 +596,7 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
     geometry_msgs::Pose2D musicTwist;
 
-
+    //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 5" << std::endl;
 
     // Basic motor velocities.
 
@@ -532,7 +604,7 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
     int activationThreshold = 95; // To be dynamically reconfigured!!! TODO
 
-    for (unsigned int k = 0; k < 18; ++k) {
+    for (unsigned int k = 0; k < 144; ++k) {
         // Attention hacked a factor 1/4.
         basicMotorVelocityInFieldsArray_[k] = (int)fmax(fmin(0 + sensitivityBasicTHETA_ * (musicTriggerValuesInFieldsArray[k]/3.0 - lowerBound_), maxVelocityBasicTHETA_), 0.0);
         //std::cout << "Drum activation: " <<
@@ -544,13 +616,14 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
     // TODO: Eventually just one loop.
 
-
+    //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 6" << std::endl;
 
 
     // Field activation and release.
-    for (unsigned int k = 0; k < 18; ++k) {
+    for (unsigned int k = 0; k < 144; ++k) {
       //std::cout << "Ever got here? is it a coloring issue? " << basicMotorVelocityInFieldsArray_[k] << std::endl;
       // Case Drum just activated.
+      //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 8: " << k << std::endl;
       if (drumActivationInFieldsArray_[k] == true && drumActivationInFieldsArrayOld_[k] == false){
           //std::cout << "Ever got here? is it a coloring issue? " << std::endl;
           colorizationIntensityArray_[k] = 255;
@@ -559,12 +632,25 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
 
           // Three layers: x -> Ornaments (live), y -> Kicks (On 1 and 3 of Metronome vel.), z -> Snares (On 2 and 4 of Metronome Vel)
-          drumMsg.x = k;
+          if (k % 14 == 0) {
+              drumMsg.x = 0;
+              drumMsg.theta = 1.0;
+          }
+          else if (k % 13 == 0) {
+              drumMsg.x = 2;
+              drumMsg.theta = 0.9;
+          }
+          else {
+              drumMsg.x = 12;
+              drumMsg.theta = 0.4;
+
+          }
           drumMsg.y = 0.0;
-          //drumMsg.z = 0.0;
 
 
+          //std::cout << "before 2" << std::endl;
           drumMessagePublisher_.publish(drumMsg);
+          //std::cout << "after 2" << std::endl;
       }
       // Decrease if it was activated before.
       if (drumActivationInFieldsArray_[k] == true && drumActivationInFieldsArrayOld_[k] == true) colorizationIntensityArray_[k] -= 40;
@@ -579,6 +665,8 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
       drumActivationInFieldsArrayOld_[k] = drumActivationInFieldsArray_[k];
 
     }
+
+   // std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 7" << std::endl;
 
     basicMotorVelocityX_ = (int)fmax(fmin(0 + sensitivityBasicX_ * (musicValueTotal - lowerBound_), maxVelocityBasicX_), 0.0);
     basicMotorVelocityY_ = (int)fmax(fmin(0 + sensitivityBasicY_ * (musicLeft - lowerBound_), maxVelocityBasicY_), 0.0);
@@ -600,7 +688,7 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
         oldDrumTriggerTime_ = newDrumTriggerTime_;
     }
 
-
+    //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 10000" << std::endl;
 
     // TODO: consider using output values for differential calculation..
 
@@ -691,10 +779,11 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 
     // Publish.
     if (simpleDiffCalculation && diffTrigger_ && diffLPFTrigger_) DifferentialMusicValuePublisher_.publish(musicSimplerDifferential);
-    MusicValuePublisher_.publish(musicTwist);
+    //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 10001" << std::endl;
+    //MusicValuePublisher_.publish(musicTwist);
   }
 
-
+  //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 10002" << std::endl;
 
 
 
@@ -722,7 +811,7 @@ void MotionVisualizerDrums::edgeDetectionImageCallback(
 //}
 
 
-void MotionVisualizerDrums::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
+void MotionVisualizerDrumsOpenCV::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
 
   redHistorySize_ = config.redHistorySize;
   redGain_ = config.redGain;
@@ -803,7 +892,7 @@ void MotionVisualizerDrums::drCallback(simple_kinect_motion_visualizer::Visualiz
 //    MusicValuePublisherForLED_.publish(valuesForLED);
 //}
 
-MotionVisualizerDrums::~MotionVisualizerDrums()
+MotionVisualizerDrumsOpenCV::~MotionVisualizerDrumsOpenCV()
 {
 
   //cout << "In destructor: " << this->lpfGainUp_ << endl;

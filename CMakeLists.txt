@@ -16,7 +16,9 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   dynamic_reconfigure
+  OpenCV
   cv_bridge
+#  image_transport
 )
 
 find_package(Qt5Widgets)
@@ -125,7 +127,7 @@ generate_dynamic_reconfigure_options(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
+  INCLUDE_DIRS include ${OpenCV_INCLUDE_DIRS}
   #../../../Mixxx/mixxx/src ../../../Mixxx/mixxx ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
  # ../../../../../../usr/include/x86_64-linux-gnu/qt5 ../../../Mixxx/mixxx
  # ../../../Mixxx/mixxx/lin64_build/src ../../../Mixxx/mixxx/lin64_build
@@ -139,6 +141,10 @@ catkin_package(
 # DEPENDS system_lib
 )
 
+find_package(OpenCV)
+
+#include_directories(include ${OpenCV_INCLUDE_DIRS})
+
 ###########
 ## Build ##
 ###########
@@ -148,6 +154,7 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
  # ../../../Mixxx/mixxx/src
  # ../../../Mixxx/mixxx
  # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
@@ -169,6 +176,7 @@ add_library(${PROJECT_NAME}_library
   src/motionVisualizer.cpp
   src/gravityEffector.cpp
   src/motionVisualizerDrums.cpp
+  src/motionVisualizerDrumsOpenCV.cpp
 )
 
 add_executable(
@@ -181,6 +189,10 @@ add_executable(
 
 add_executable(
   motionVisualizerDrumsNode src/motionVisualizerDrumsNode.cpp
+)
+
+add_executable(
+  motionVisualizerDrumsOpenCVNode src/motionVisualizerDrumsOpenCVNode.cpp
 )
 
 
@@ -235,6 +247,17 @@ target_link_libraries(motionVisualizerDrumsNode
   Qt5::Xml
   Qt5::Core
   Qt5::Gui
+)
+
+target_link_libraries(motionVisualizerDrumsOpenCVNode
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+  ${PROJECT_NAME}_library
+  Qt5::Widgets
+  Qt5::Xml
+  Qt5::Core
+  Qt5::Gui
+ # image_transport
 )
 
 #target_link_libraries(motionVisualizer
