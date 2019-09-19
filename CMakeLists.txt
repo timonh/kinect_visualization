@@ -18,7 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
   OpenCV
   cv_bridge
-#  image_transport
+  #image_transport
 )
 
 find_package(Qt5Widgets)
@@ -257,7 +257,7 @@ target_link_libraries(motionVisualizerDrumsOpenCVNode
   Qt5::Xml
   Qt5::Core
   Qt5::Gui
- # image_transport
+  #image_transport
 )
 
 #target_link_libraries(motionVisualizer

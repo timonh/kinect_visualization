@@ -123,6 +123,8 @@ class MotionVisualizerDrums
 
   void edgeDetectionImageCallback(const sensor_msgs::Image& imageEdgeDetection);
 
+
+
   void cameraInfoCallback(const sensor_msgs::CameraInfo& CameraInfo);
 
   // Randomizer for motors running.
@@ -135,6 +137,7 @@ class MotionVisualizerDrums
   std::vector<sensor_msgs::Image> outputImages_;
 
   ros::Subscriber edgeDetectionImageSubscriber_;
+
   ros::Publisher coloredCombinedImagePublisher_;
   ros::Publisher coloredImagePublisher_;
 

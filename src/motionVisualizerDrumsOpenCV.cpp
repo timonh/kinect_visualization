@@ -61,6 +61,8 @@ MotionVisualizerDrumsOpenCV::MotionVisualizerDrumsOpenCV(ros::NodeHandle& nodeHa
 
   edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback, this);
 
+  depthImageSubscriber_ = nodeHandle_.subscribe("/camera/depth/image_raw", 1, &MotionVisualizerDrumsOpenCV::depthImageCallback, this);
+
   // Helper subscriber for frequency test, may be obsolete soon.
   //cameraInfoSubscriber_ = nodeHandle_.subscribe("/camera/rgb/camera_info", 1, &MotionVisualizerDrums::cameraInfoCallback, this);
 
@@ -74,6 +76,8 @@ MotionVisualizerDrumsOpenCV::MotionVisualizerDrumsOpenCV(ros::NodeHandle& nodeHa
 
   //std::cout << "before 1" << std::endl;
   drumMessagePublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("/motion_visualizer/drum_triggers", 1);
+
+  distanceBasedThemeSwitchingPublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("/motion_visualizer/theme_switcher", 1);
   //std::cout << "after 1" << std::endl;
 
   //cogPublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("cog_keyvalues", 5);
@@ -293,7 +297,7 @@ void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
     bool fast = false;
 
 
-    std::cout << "Edge Detection image history size: " << edgeDetectionImageHistory_.size() << std::endl;
+    //std::cout << "Edge Detection image history size: " << edgeDetectionImageHistory_.size() << std::endl;
 
     for(unsigned int j = 0; j < edgeDetectionImageHistory_.size()-1; ++j){
       totalDifference += fabs(edgeDetectionImageHistory_[j].data[i] - edgeDetectionImageHistory_[j+1].data[i]);
@@ -380,8 +384,8 @@ void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
 
         // TEST for fully coloring according to detected motion
         if (!noField) {
-          if ((fieldNumber-1) % 14 == 0) outputImages_[1].data[4*i+1] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
-          else if ((fieldNumber-1) % 13 == 0) outputImages_[1].data[4*i] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+          if ((fieldNumber-1) % 18 == 0) outputImages_[1].data[4*i+1] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+          else if ((fieldNumber-1) % 17 == 0) outputImages_[1].data[4*i] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
           else outputImages_[1].data[4*i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
         }
         //if (fieldNumber % 12 == 0) outputImages_[1].data[4*i+1] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
@@ -632,16 +636,16 @@ void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
 
 
           // Three layers: x -> Ornaments (live), y -> Kicks (On 1 and 3 of Metronome vel.), z -> Snares (On 2 and 4 of Metronome Vel)
-          if (k % 14 == 0) {
+          if (k % 18 == 0) {
               drumMsg.x = 0;
               drumMsg.theta = 1.0;
           }
-          else if (k % 13 == 0) {
+          else if (k % 17 == 0) {
               drumMsg.x = 2;
               drumMsg.theta = 0.9;
           }
           else {
-              drumMsg.x = 12;
+              drumMsg.x = floor((double)k/(144.0/108.0));
               drumMsg.theta = 0.4;
 
           }
@@ -891,6 +895,47 @@ void MotionVisualizerDrumsOpenCV::drCallback(simple_kinect_motion_visualizer::Vi
 //    OldLEDlpfTHETA_ = valuesForLED.theta;
 //    MusicValuePublisherForLED_.publish(valuesForLED);
 //}
+
+void MotionVisualizerDrumsOpenCV::depthImageCallback(
+    const sensor_msgs::ImageConstPtr& depthImage)
+{
+
+  std::cout << "Encoding of depth image: " << depthImage->encoding << " sample depth: " << depthImage->data[2000] <<  std::endl;
+  std::cout << "Step of depth image: " << depthImage->step << " width: " << depthImage->width <<  std::endl;
+  std::cout << "Encoding of depth image: " << (double)depthImage->data[2000] << " sample depth: " << (double)depthImage->data[2001] <<  std::endl;
+  std::cout << "Encoding of depth image: " << (double)depthImage->data[2002] << " sample depth: " << (double)depthImage->data[2003] <<  std::endl;
+
+  //TODO:
+  // DRconfig:
+  int sampleResolution = 50;
+  //int initialBlockingCounterValue;
+  //double meanDistanceThreshold;
+
+  totalDistanceAccumulation_ = 0.0;
+  noOfPixelsConsidered_ = 0;
+  meanDistanceThreshold_ = 15;
+
+  std::cout << "Depth image size: " << depthImage->data.size() << std::endl;
+  for (unsigned int k = int (sampleResolution/2.0); k < depthImage->data.size(); k+=sampleResolution) {
+    totalDistanceAccumulation_ += depthImage->data[floor((double)k/2.0)];
+    noOfPixelsConsidered_++;
+  }
+  double meanDistance = totalDistanceAccumulation_ / (double)noOfPixelsConsidered_;
+
+  if (blockingCounter_ > 0) blockingCounter_--;
+
+  if (meanDistance <= meanDistanceThreshold_ && oldMeanDistance_ > meanDistanceThreshold_ && blockingCounter_ == 0) {
+    blockingCounter_ = 60;
+    geometry_msgs::Pose2D switcherMsg;
+    switcherMsg.x = meanDistance;
+    distanceBasedThemeSwitchingPublisher_.publish(switcherMsg);
+  }
+
+  oldMeanDistance_ = meanDistance;
+
+  std::cout << "meanDistance: " << meanDistance << std::endl;
+
+}
 
 MotionVisualizerDrumsOpenCV::~MotionVisualizerDrumsOpenCV()
 {

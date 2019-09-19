@@ -125,6 +125,8 @@ class MotionVisualizerDrumsOpenCV
 
   void edgeDetectionImageCallback(const sensor_msgs::ImageConstPtr& imageEdgeDetection);
 
+  void depthImageCallback(const sensor_msgs::ImageConstPtr& imageEdgeDetection);
+
   void cameraInfoCallback(const sensor_msgs::CameraInfo& CameraInfo);
 
   // Randomizer for motors running.
@@ -137,6 +139,7 @@ class MotionVisualizerDrumsOpenCV
   std::vector<sensor_msgs::Image> outputImages_;
 
   ros::Subscriber edgeDetectionImageSubscriber_;
+  ros::Subscriber depthImageSubscriber_;
   ros::Publisher coloredCombinedImagePublisher_;
   ros::Publisher coloredImagePublisher_;
 
@@ -174,5 +177,13 @@ class MotionVisualizerDrumsOpenCV
 
   // Chose if applying LPFing (potentially increasing rate)
   bool applyLPF_;
+
+  // Parameters for efficient Mean Distance approximation from depth image
+  double totalDistanceAccumulation_;
+  int noOfPixelsConsidered_;
+  int blockingCounter_;
+  double meanDistanceThreshold_;
+  double oldMeanDistance_;
+  ros::Publisher distanceBasedThemeSwitchingPublisher_;
 };
 
