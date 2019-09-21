@@ -24,6 +24,10 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
 #include <cv_bridge/cv_bridge.h>
+
+#include <sensor_msgs/image_encodings.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
 //#include "effects/builtin/filtereffect.h"
 //#include <image_transport/image_transport.h>
 
@@ -158,7 +162,6 @@ void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
   outputImage.is_bigendian = imageEdgeDetection->is_bigendian;
   outputImage.header = imageEdgeDetection->header;
   outputImage.data.resize(4*imageEdgeDetection->data.size());
-
 
 
   //std::cout << "width: " << imageEdgeDetection->width << "height: " << imageEdgeDetection->height << "Encoding: " << imageEdgeDetection->encoding << std::endl;

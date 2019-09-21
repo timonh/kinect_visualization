@@ -17,6 +17,11 @@
 
 #include "simple_kinect_motion_visualizer/VisualizationConfig.h"
 #include <cv_bridge/cv_bridge.h>
+
+#include <sensor_msgs/image_encodings.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 //#include <image_transport/image_transport.h>
 
 //#include <effects/builtin/filtereffect.h>

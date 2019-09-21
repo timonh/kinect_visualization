@@ -16,7 +16,6 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   dynamic_reconfigure
-  OpenCV
   cv_bridge
   #image_transport
 )
@@ -25,6 +24,8 @@ find_package(Qt5Widgets)
 find_package(Qt5Core)
 find_package(Qt5Xml)
 find_package(Qt5Gui)
+
+find_package(OpenCV)
 
 generate_dynamic_reconfigure_options(
   cfg/visualization_config.cfg
@@ -137,7 +138,7 @@ catkin_package(
  # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtWidgets
  # ../../../Mixxx/mixxx/lib/fidlib
   LIBRARIES simple_kinect_motion_visualizer
-  CATKIN_DEPENDS roscpp rospy std_msgs dynamic_reconfigure
+  CATKIN_DEPENDS roscpp rospy std_msgs dynamic_reconfigure cv_bridge
 # DEPENDS system_lib
 )
 
@@ -169,6 +170,7 @@ include_directories(
  # ../../../Mixxx/mixxx/lib/fidlib
 )
 
+include_directories( ${OpenCV_INCLUDE_DIRS} )
 
 
 ## Declare a C++ library
@@ -251,7 +253,7 @@ target_link_libraries(motionVisualizerDrumsNode
 
 target_link_libraries(motionVisualizerDrumsOpenCVNode
   ${catkin_LIBRARIES}
-  ${OpenCV_LIBRARIES}
+  ${OpenCV_LIBS}
   ${PROJECT_NAME}_library
   Qt5::Widgets
   Qt5::Xml
@@ -259,6 +261,8 @@ target_link_libraries(motionVisualizerDrumsOpenCVNode
   Qt5::Gui
   #image_transport
 )
+
+#target_link_libraries( motionVisualizerDrumsOpenCVNode ${OpenCV_LIBS} )
 
 #target_link_libraries(motionVisualizer
 #  ${catkin_LIBRARIES}
