@@ -124,6 +124,9 @@ class MotionVisualizerDrumsOpenCV
   // Storage for calculated motor velocity values
   int basicMotorVelocityX_, basicMotorVelocityY_, basicMotorVelocityTHETA_;
 
+  // Bool for preliminary field pattern distribution.
+  bool useTinyAdjustable_;
+
 
 
   private:
@@ -133,6 +136,8 @@ class MotionVisualizerDrumsOpenCV
   void depthImageCallback(const sensor_msgs::ImageConstPtr& imageEdgeDetection);
 
   void cameraInfoCallback(const sensor_msgs::CameraInfo& CameraInfo);
+
+  void themeSwitcherAfterSixteenCallback(const geometry_msgs::Pose2D& themeSwitcherAfterSixteenMsg);
 
   // Randomizer for motors running.
   std::tuple<geometry_msgs::Pose2D, geometry_msgs::Pose2D> RandomSwitch(geometry_msgs::Pose2D& motionValuesBasic, geometry_msgs::Pose2D& motionValuesDifferential);
@@ -148,7 +153,8 @@ class MotionVisualizerDrumsOpenCV
   ros::Publisher coloredCombinedImagePublisher_;
   ros::Publisher coloredImagePublisher_;
 
-
+  // Subscriber for switching themes after 16 takte of loop recording.
+  ros::Subscriber themeSwitcherAfterSixteenSubscriber_;
 
 
   //image_transport::Subscriber inputImageSubscriber_;

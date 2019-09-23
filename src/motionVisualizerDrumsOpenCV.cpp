@@ -84,6 +84,9 @@ MotionVisualizerDrumsOpenCV::MotionVisualizerDrumsOpenCV(ros::NodeHandle& nodeHa
   distanceBasedThemeSwitchingPublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("/motion_visualizer/theme_switcher", 1);
   //std::cout << "after 1" << std::endl;
 
+  themeSwitcherAfterSixteenSubscriber_ = nodeHandle_.subscribe("/motion_visualizer/theme_switcher_after_sixteen", 1, &MotionVisualizerDrumsOpenCV::themeSwitcherAfterSixteenCallback, this);
+
+
   //cogPublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("cog_keyvalues", 5);
 
   // Trigger for low pass filter.
@@ -136,6 +139,9 @@ MotionVisualizerDrumsOpenCV::MotionVisualizerDrumsOpenCV(ros::NodeHandle& nodeHa
 
   // Chose if applying lpfing for image.
   applyLPF_ = false;
+
+  // Tiny field distribution for starting.
+  useTinyAdjustable_ = true;
 }
 
 
@@ -246,20 +252,19 @@ void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
     int noHorizontalFieldsInSideStripes = 6;
     int noVerticalFieldsInSideStripes = 12;
     int fieldNumber = 0;
-    bool useTinyAdjustable = true;
     bool noField = true;
 
 
     //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 222222" << std::endl;
 
-    if (useTinyAdjustable)
+    if (useTinyAdjustable_)
     {
       // LEFT THIRD:
       if (pixelXAxis <= widthSideStripes)
       {
         fieldXTinyLeft = floor(pixelXAxis * noHorizontalFieldsInSideStripes * (1.0/widthSideStripes)) + 1;
         fieldYTinyLeft = floor(pixelYAxis * noVerticalFieldsInSideStripes) + 1;
-        fieldNumber = fieldXTinyLeft + (fieldYTinyLeft - 1) * noHorizontalFieldsInSideStripes;
+        fieldNumber = fieldXTinyLeft + (fieldYTinyLeft - 1) * noHorizontalFieldsInSideStripes + 18;
         noField = false;
       }
 
@@ -269,7 +274,7 @@ void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
         fieldXTinyRight = floor((pixelXAxis - (1 - widthSideStripes)) * noHorizontalFieldsInSideStripes * (1.0/widthSideStripes)) + 1;
         fieldYTinyRight = floor(pixelYAxis * noVerticalFieldsInSideStripes) + 1;
         //std::cout << "FieldX: " << fieldXTinyRight << " fieldy " << fieldYTinyRight << std::endl;
-        fieldNumber = fieldXTinyRight + (fieldYTinyRight - 1) * noHorizontalFieldsInSideStripes + noHorizontalFieldsInSideStripes * noVerticalFieldsInSideStripes;
+        fieldNumber = fieldXTinyRight + (fieldYTinyRight - 1) * noHorizontalFieldsInSideStripes + noHorizontalFieldsInSideStripes * noVerticalFieldsInSideStripes + 18;
         noField = false;
       }
     }
@@ -639,18 +644,21 @@ void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
 
 
           // Three layers: x -> Ornaments (live), y -> Kicks (On 1 and 3 of Metronome vel.), z -> Snares (On 2 and 4 of Metronome Vel)
-          if (k % 18 == 0) {
-              drumMsg.x = 0;
+          //if (k % 18 == 0) {
+          //    drumMsg.x = 0;
+          //    drumMsg.theta = 1.0;
+          //}
+          //else if (k % 17 == 0) {
+          //    drumMsg.x = 2;
+          //    drumMsg.theta = 0.9;
+          //}
+          if (k < 18) {
+              drumMsg.x = k;
               drumMsg.theta = 1.0;
           }
-          else if (k % 17 == 0) {
-              drumMsg.x = 2;
-              drumMsg.theta = 0.9;
-          }
           else {
-              drumMsg.x = floor((double)k/(144.0/108.0));
-              drumMsg.theta = 0.4;
-
+              drumMsg.x = floor((double)k/(144.0/90.0)) + 18;
+              drumMsg.theta = 1.0;
           }
           drumMsg.y = 0.0;
 
@@ -903,10 +911,10 @@ void MotionVisualizerDrumsOpenCV::depthImageCallback(
     const sensor_msgs::ImageConstPtr& depthImage)
 {
 
-  std::cout << "Encoding of depth image: " << depthImage->encoding << " sample depth: " << depthImage->data[2000] <<  std::endl;
-  std::cout << "Step of depth image: " << depthImage->step << " width: " << depthImage->width <<  std::endl;
-  std::cout << "Encoding of depth image: " << (double)depthImage->data[2000] << " sample depth: " << (double)depthImage->data[2001] <<  std::endl;
-  std::cout << "Encoding of depth image: " << (double)depthImage->data[2002] << " sample depth: " << (double)depthImage->data[2003] <<  std::endl;
+  //std::cout << "Encoding of depth image: " << depthImage->encoding << " sample depth: " << depthImage->data[2000] <<  std::endl;
+  //std::cout << "Step of depth image: " << depthImage->step << " width: " << depthImage->width <<  std::endl;
+  //std::cout << "Encoding of depth image: " << (double)depthImage->data[2000] << " sample depth: " << (double)depthImage->data[2001] <<  std::endl;
+  //std::cout << "Encoding of depth image: " << (double)depthImage->data[2002] << " sample depth: " << (double)depthImage->data[2003] <<  std::endl;
 
   //TODO:
   // DRconfig:
@@ -918,7 +926,7 @@ void MotionVisualizerDrumsOpenCV::depthImageCallback(
   noOfPixelsConsidered_ = 0;
   meanDistanceThreshold_ = 15;
 
-  std::cout << "Depth image size: " << depthImage->data.size() << std::endl;
+  //std::cout << "Depth image size: " << depthImage->data.size() << std::endl;
   for (unsigned int k = int (sampleResolution/2.0); k < depthImage->data.size(); k+=sampleResolution) {
     totalDistanceAccumulation_ += depthImage->data[floor((double)k/2.0)];
     noOfPixelsConsidered_++;
@@ -936,8 +944,13 @@ void MotionVisualizerDrumsOpenCV::depthImageCallback(
 
   oldMeanDistance_ = meanDistance;
 
-  std::cout << "meanDistance: " << meanDistance << std::endl;
+  //std::cout << "meanDistance: " << meanDistance << std::endl;
 
+}
+
+void MotionVisualizerDrumsOpenCV::themeSwitcherAfterSixteenCallback(const geometry_msgs::Pose2D& themeSwitcherAfterSixteenMsg)
+{
+  useTinyAdjustable_ = false;
 }
 
 MotionVisualizerDrumsOpenCV::~MotionVisualizerDrumsOpenCV()
