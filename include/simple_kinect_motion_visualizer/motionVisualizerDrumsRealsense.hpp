@@ -109,10 +109,10 @@ class MotionVisualizerDrumsRealsense
   lpfGainDiffX_, lpfGainDiffY_, lpfGainDiffTHETA_;
 
   // 18 Fields Motor velocity.
-  int basicMotorVelocityInFieldsArray_[144];
-  bool drumActivationInFieldsArray_[144];
-  bool drumActivationInFieldsArrayOld_[144];
-  int colorizationIntensityArray_[144];
+  int basicMotorVelocityInFieldsArray_[162];
+  bool drumActivationInFieldsArray_[162];
+  bool drumActivationInFieldsArrayOld_[162];
+  int colorizationIntensityArray_[162];
 
   // Timing for Drum triggereing tests.
   double newDrumTriggerTime_;
@@ -131,7 +131,8 @@ class MotionVisualizerDrumsRealsense
 
   private:
 
-  void edgeDetectionImageCallback(const sensor_msgs::ImageConstPtr& imageEdgeDetection);
+  void inputImageCallbackFormatTest(const sensor_msgs::ImageConstPtr& inputImage);
+  void inputImageCallback(const sensor_msgs::ImageConstPtr& inputImage);
 
   void depthImageCallback(const sensor_msgs::ImageConstPtr& imageEdgeDetection);
 
@@ -143,7 +144,7 @@ class MotionVisualizerDrumsRealsense
   std::tuple<geometry_msgs::Pose2D, geometry_msgs::Pose2D> RandomSwitch(geometry_msgs::Pose2D& motionValuesBasic, geometry_msgs::Pose2D& motionValuesDifferential);
 
   // List of sensor images (for history)
-  std::vector<sensor_msgs::Image> edgeDetectionImageHistory_;
+  std::vector<sensor_msgs::Image> inputImageHistory_;
 
   // List of Output Images (For low pass filtering)
   std::vector<sensor_msgs::Image> outputImages_;

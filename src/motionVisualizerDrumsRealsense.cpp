@@ -49,23 +49,15 @@ MotionVisualizerDrumsRealsense::MotionVisualizerDrumsRealsense(ros::NodeHandle& 
   ROS_INFO("Motion visualization node for Drum Machine started.");
 
   std::string topic_name;
-  bool depth_image = false;
-  bool mono_image = true;
-  if (depth_image) topic_name = "/camera/depth/image";
-  else if (mono_image) topic_name = "/camera/rgb/image_mono";
-  else topic_name = "/edge_detection/image";
-
+  topic_name = "/camera/color/image_raw";
 
   // Image transport
   //image_transport::ImageTransport it(nodeHandle_);
-
   //inputImageSubscriber_ = it.subscribe(topic_name, 1, &MotionVisualizerDrumsRealsense::edgeDetectionImageCallback, this);
 
+  edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizerDrumsRealsense::inputImageCallback, this);
 
-
-  edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizerDrumsRealsense::edgeDetectionImageCallback, this);
-
-  depthImageSubscriber_ = nodeHandle_.subscribe("/camera/depth/image_raw", 1, &MotionVisualizerDrumsRealsense::depthImageCallback, this);
+  depthImageSubscriber_ = nodeHandle_.subscribe("/camera/depth/image_rect_raw", 1, &MotionVisualizerDrumsRealsense::depthImageCallback, this);
 
   // Helper subscriber for frequency test, may be obsolete soon.
   //cameraInfoSubscriber_ = nodeHandle_.subscribe("/camera/rgb/camera_info", 1, &MotionVisualizerDrums::cameraInfoCallback, this);
@@ -121,7 +113,7 @@ MotionVisualizerDrumsRealsense::MotionVisualizerDrumsRealsense(ros::NodeHandle& 
 
   // Initialize the drum activation array to 0.
 
-  for (unsigned int i = 0; i < 144; ++i) {
+  for (unsigned int i = 0; i < 162; ++i) {
       drumActivationInFieldsArray_[i] = false;
       drumActivationInFieldsArrayOld_[i] = false;
       colorizationIntensityArray_[i] = 0;
@@ -142,54 +134,65 @@ MotionVisualizerDrumsRealsense::MotionVisualizerDrumsRealsense(ros::NodeHandle& 
 
   // Tiny field distribution for starting.
   useTinyAdjustable_ = true;
+
+  // Blocking Counter for depth recognition.
+  blockingCounter_ = 0;
 }
 
-
-void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
-    const sensor_msgs::ImageConstPtr& imageEdgeDetection)
+void MotionVisualizerDrumsRealsense::inputImageCallbackFormatTest(
+    const sensor_msgs::ImageConstPtr& inputImage)
 {
-  //ROS_INFO("Image encoding: %s", imageEdgeDetection.encoding.c_str());
-  //ROS_INFO("200 entry data: %d", imageEdgeDetection.data[1000]);
+    std::cout << "WIDTH: " << inputImage->width << " HEIGHT: " << inputImage->height << " STEP: " << inputImage->step << std::endl;
+    std::cout << "Encoding: " << inputImage->encoding << std::endl;
+}
 
+void MotionVisualizerDrumsRealsense::inputImageCallback(
+    const sensor_msgs::ImageConstPtr& inputImage)
+{
+  //ROS_INFO("Image encoding: %s", inputImage.encoding.c_str());
+  //ROS_INFO("200 entry data: %d", inputImage.data[1000]);
+
+  //std::cout << "WIDTH: " << inputImage->width << " HEIGHT: " << inputImage->height << " STEP: " << inputImage->step << std::endl;
+  //std::cout << "Encoding: " << inputImage->encoding << std::endl;
   //sensor_msgs::Image outputImage;
   //outputImage.encoding = "rgba8";
-  //outputImage.width = imageEdgeDetection.width;
-  //outputImage.height = imageEdgeDetection.height;
-  //outputImage.step = imageEdgeDetection.step * 4;
-  //outputImage.is_bigendian = imageEdgeDetection.is_bigendian;
-  //outputImage.header = imageEdgeDetection.header;
-  //outputImage.data.resize(4*imageEdgeDetection.data.size());
+  //outputImage.width = inputImage.width;
+  //outputImage.height = inputImage.height;
+  //outputImage.step = inputImage.step * 4;
+  //outputImage.is_bigendian = inputImage.is_bigendian;
+  //outputImage.header = inputImage.header;
+  //outputImage.data.resize(4*inputImage.data.size());
 
   sensor_msgs::Image outputImage;
-  outputImage.encoding = "rgba8";
-  outputImage.width = imageEdgeDetection->width;
-  outputImage.height = imageEdgeDetection->height;
-  outputImage.step = imageEdgeDetection->step * 4;
-  outputImage.is_bigendian = imageEdgeDetection->is_bigendian;
-  outputImage.header = imageEdgeDetection->header;
-  outputImage.data.resize(4*imageEdgeDetection->data.size());
+  outputImage.encoding = inputImage->encoding;
+  outputImage.width = inputImage->width;
+  outputImage.height = inputImage->height;
+  outputImage.step = inputImage->step;
+  outputImage.is_bigendian = inputImage->is_bigendian;
+  outputImage.header = inputImage->header;
+  outputImage.data.resize(inputImage->data.size());
 
 
-  //std::cout << "width: " << imageEdgeDetection->width << "height: " << imageEdgeDetection->height << "Encoding: " << imageEdgeDetection->encoding << std::endl;
+  //std::cout << "width: " << inputImage->width << "height: " << inputImage->height << "Encoding: " << inputImage->encoding << std::endl;
 
   //sensor_msgs::Image outputImageCombined;
   //outputImageCombined.encoding = "rgba8";
-  //outputImageCombined.width = imageEdgeDetection.width;
-  //outputImageCombined.height = imageEdgeDetection.height;
-  //outputImageCombined.step = imageEdgeDetection.step * 4;
-  //outputImageCombined.is_bigendian = imageEdgeDetection.is_bigendian;
-  //outputImageCombined.header = imageEdgeDetection.header;
-  //outputImageCombined.data.resize(4*imageEdgeDetection.data.size());
+  //outputImageCombined.width = inputImage.width;
+  //outputImageCombined.height = inputImage.height;
+  //outputImageCombined.step = inputImage.step * 4;
+  //outputImageCombined.is_bigendian = inputImage.is_bigendian;
+  //outputImageCombined.header = inputImage.header;
+  //outputImageCombined.data.resize(4*inputImage.data.size());
 
 
   // Set number of considered images for blurring
-  if (edgeDetectionImageHistory_.size() > 1) edgeDetectionImageHistory_.erase(edgeDetectionImageHistory_.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
-  edgeDetectionImageHistory_.push_back(*imageEdgeDetection);
+  if (inputImageHistory_.size() > 1) inputImageHistory_.erase(inputImageHistory_.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
+  inputImageHistory_.push_back(*inputImage);
 
   if (outputImages_.size() > 1) outputImages_.erase(outputImages_.begin()); // Hacked a 2 in here, history sizes will have no effect anymore
   outputImages_.push_back(outputImage);
 
-  //std::cout << "edgeDetectionImageHistory__size: " << edgeDetectionImageHistory_.size() << std::endl;
+  //std::cout << "inputImageHistory__size: " << inputImageHistory_.size() << std::endl;
 
 
 
@@ -209,9 +212,9 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
   //int totalDifferenceTimesHorizontalPixels;
   //int totalDOfferenceTimesVertialPixels;
 
-  //std::cout << "Size of the Edge detection image: " << imageEdgeDetection.data.size() << std::endl;
+  //std::cout << "Size of the Edge detection image: " << inputImage.data.size() << std::endl;
 
-  //imageEdgeDetection.header.
+  //inputImage.header.
 
   // For center of gravity calculation.
 
@@ -222,18 +225,18 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
 
 
   // Vector of Difference Values for each field.
-  int differenceValueInFieldsArray[144] = {};
+  int differenceValueInFieldsArray[162] = {};
 
 
   //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN" << std::endl;
 
-  for (unsigned int i = 0; i < imageEdgeDetection->data.size(); ++i){
-    //outputImage.data[4*i] = imageEdgeDetection.data[i];
+  for (unsigned int i = 0; i < inputImage->data.size(); i = i+3){
+    //outputImage.data[4*i] = inputImage.data[i];
     // Get location within image: x = 0: left border, x = 1 reight border, y = 0: top, y = 0: bottom
 
-    double pixelXAxis = double(i % imageEdgeDetection->width) / (double)imageEdgeDetection->width;
-    //double pixelYAxis = double(floor(i / imageEdgeDetection.width)+1) / (double)imageEdgeDetection.height;
-    double pixelYAxis = double(floor((double)i / (double)imageEdgeDetection->width)) / (double)imageEdgeDetection->height;
+    double pixelXAxis = double((int)(i/3.0) % inputImage->width) / (double)inputImage->width;
+    //double pixelYAxis = double(floor(i / inputImage.width)+1) / (double)inputImage.height;
+    double pixelYAxis = double(floor((double)(i/3.0) / (double)inputImage->width)) / (double)inputImage->height;
 
 
     //std::cout << "YAxis: " << pixelYAxis << std::endl;
@@ -260,7 +263,7 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
     if (useTinyAdjustable_)
     {
       // LEFT THIRD:
-      if (pixelXAxis <= widthSideStripes)
+      if (pixelXAxis < widthSideStripes)
       {
         fieldXTinyLeft = floor(pixelXAxis * noHorizontalFieldsInSideStripes * (1.0/widthSideStripes)) + 1;
         fieldYTinyLeft = floor(pixelYAxis * noVerticalFieldsInSideStripes) + 1;
@@ -305,13 +308,15 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
     bool fast = false;
 
 
-    //std::cout << "Edge Detection image history size: " << edgeDetectionImageHistory_.size() << std::endl;
+    //std::cout << "Edge Detection image history size: " << inputImageHistory_.size() << std::endl;
 
-    for(unsigned int j = 0; j < edgeDetectionImageHistory_.size()-1; ++j){
-      totalDifference += fabs(edgeDetectionImageHistory_[j].data[i] - edgeDetectionImageHistory_[j+1].data[i]);
+    for(unsigned int j = 0; j < inputImageHistory_.size()-1; ++j){
+      totalDifference += fabs(inputImageHistory_[j].data[i] - inputImageHistory_[j+1].data[i]);
+      totalDifference += fabs(inputImageHistory_[j].data[i+1] - inputImageHistory_[j+1].data[i+1]);
+      totalDifference += fabs(inputImageHistory_[j].data[i+2] - inputImageHistory_[j+1].data[i+2]);
+      totalDifference = int(totalDifference / 3.0); // TODO: check if this is sensible!
+
     }
-
-    //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 55555" << std::endl;
 
     int musicIntensityTreshold = 50;
     if (totalDifference > musicIntensityTreshold) {
@@ -333,7 +338,7 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
             else
             {
               if (!fast){
-                outputImages_[1].data[4*i] = fmin(255, redGain_ * totalDifference);
+                outputImages_[1].data[i] = fmin(255, redGain_ * totalDifference);
                 //if (totalDifference <= redIntensityThreshold_) outputImages_[1].data[4*i] = 0;
                 if (applyLPF_) {
 
@@ -350,7 +355,7 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
                 }
                 }
 
-                outputImages_[1].data[4*i+1] = fmin(255, greenGain_ * totalDifference);
+                outputImages_[1].data[i+1] = fmin(255, greenGain_ * totalDifference);
                 //if (totalDifference <= greenIntensityThreshold_) outputImages_[1].data[4*i+1] = 0;
 
                 if (applyLPF_) {
@@ -367,7 +372,7 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
                 }
                 }
 
-                outputImages_[1].data[4*i+2] = fmin(255, blueGain_ * totalDifference);
+                outputImages_[1].data[i+2] = fmin(255, blueGain_ * totalDifference);
                 //if (totalDifference <= blueIntensityThreshold_) outputImages_[1].data[4*i+2] = 0;
 
                 if (applyLPF_) {
@@ -396,7 +401,7 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
           //if ((fieldNumber-1) % 18 == 0) outputImages_[1].data[4*i+1] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
           //else if ((fieldNumber-1) % 17 == 0) outputImages_[1].data[4*i] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
           //else outputImages_[1].data[4*i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
-          outputImages_[1].data[4*i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+          outputImages_[1].data[i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
         }
         //if (fieldNumber % 12 == 0) outputImages_[1].data[4*i+1] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
 
@@ -414,9 +419,9 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
     //if (generateCombinedImage_)
     //{
     //    if (totalDifference < 40) {
-    //         outputImageCombined.data[4*i] = (int)fmin(outputImages_[1].data[4*i] + imageEdgeDetection.data[i], 255.0);
-    //         outputImageCombined.data[4*i+1] = (int)fmin(outputImages_[1].data[4*i+1]  + imageEdgeDetection.data[i], 255.0);
-    //         outputImageCombined.data[4*i+2] = (int)fmin(outputImages_[1].data[4*i+2]  + imageEdgeDetection.data[i],255.0);
+    //         outputImageCombined.data[4*i] = (int)fmin(outputImages_[1].data[4*i] + inputImage.data[i], 255.0);
+    //         outputImageCombined.data[4*i+1] = (int)fmin(outputImages_[1].data[4*i+1]  + inputImage.data[i], 255.0);
+    //         outputImageCombined.data[4*i+2] = (int)fmin(outputImages_[1].data[4*i+2]  + inputImage.data[i],255.0);
     //    }
     //    else {
     //        outputImageCombined.data[4*i] = outputImages_[1].data[4*i];
@@ -549,10 +554,11 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
 
 
     // Get Music value for each Field
-    double musicTriggerValuesInFieldsArray[144] = {};
+    double musicTriggerValuesInFieldsArray[162] = {};
     // Take absolute values (just for security).
-    for (unsigned int k = 0; k < 144; ++k){
-        differenceValueInFieldsArray[k] = abs(144.0 * differenceValueInFieldsArray[k]);
+    for (unsigned int k = 0; k < 162; ++k){
+        if (k < 18) differenceValueInFieldsArray[k] = abs(18.0 * differenceValueInFieldsArray[k]);
+        else differenceValueInFieldsArray[k] = abs(144.0 * differenceValueInFieldsArray[k]);
         if (quadraticCorrelation_) musicTriggerValuesInFieldsArray[k] = max(min((float)differenceValueInFieldsArray[k] * differenceValueInFieldsArray[k] / (gainDivider_ * 10000000000.0) - minusTerm_, 0.5) ,lowerBound_);
         else musicTriggerValuesInFieldsArray[k] = max(min((float)differenceValueInFieldsArray[k] / 15000000000.0 - 0.07, 0.5) ,lowerBound_);
         //differenceValueInFieldsArray[k] = abs(18.0 * differenceValueInFieldsArray[k]);
@@ -618,7 +624,7 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
 
     int activationThreshold = 95; // To be dynamically reconfigured!!! TODO
 
-    for (unsigned int k = 0; k < 144; ++k) {
+    for (unsigned int k = 0; k < 162; ++k) {
         // Attention hacked a factor 1/4.
         basicMotorVelocityInFieldsArray_[k] = (int)fmax(fmin(0 + sensitivityBasicTHETA_ * (musicTriggerValuesInFieldsArray[k]/3.0 - lowerBound_), maxVelocityBasicTHETA_), 0.0);
         //std::cout << "Drum activation: " <<
@@ -634,7 +640,7 @@ void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
 
 
     // Field activation and release.
-    for (unsigned int k = 0; k < 144; ++k) {
+    for (unsigned int k = 0; k < 162; ++k) {
       //std::cout << "Ever got here? is it a coloring issue? " << basicMotorVelocityInFieldsArray_[k] << std::endl;
       // Case Drum just activated.
       //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 8: " << k << std::endl;
@@ -926,7 +932,7 @@ void MotionVisualizerDrumsRealsense::depthImageCallback(
 
   totalDistanceAccumulation_ = 0.0;
   noOfPixelsConsidered_ = 0;
-  meanDistanceThreshold_ = 13;
+  meanDistanceThreshold_ = 17;
 
   //std::cout << "Depth image size: " << depthImage->data.size() << std::endl;
   for (unsigned int k = int (sampleResolution/2.0); k < depthImage->data.size(); k+=sampleResolution) {
@@ -937,16 +943,20 @@ void MotionVisualizerDrumsRealsense::depthImageCallback(
 
   if (blockingCounter_ > 0) blockingCounter_--;
 
+
+
   if (meanDistance <= meanDistanceThreshold_ && oldMeanDistance_ > meanDistanceThreshold_ && blockingCounter_ == 0) {
+    std::cout << "meanDistance: " << meanDistance << std::endl;
     blockingCounter_ = 60;
     geometry_msgs::Pose2D switcherMsg;
     switcherMsg.x = meanDistance;
     distanceBasedThemeSwitchingPublisher_.publish(switcherMsg);
+
   }
 
   oldMeanDistance_ = meanDistance;
 
- // std::cout << "meanDistance: " << meanDistance << std::endl;
+
 
 }
 
