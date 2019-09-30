@@ -2,11 +2,14 @@ include/simple_kinect_motion_visualizer/gravityEffector.hpp
 include/simple_kinect_motion_visualizer/motionVisualizer.hpp
 include/simple_kinect_motion_visualizer/motionVisualizerDrums.hpp
 include/simple_kinect_motion_visualizer/motionVisualizerDrumsOpenCV.hpp
+include/simple_kinect_motion_visualizer/motionVisualizerDrumsRealsense.hpp
 src/gravityEffector.cpp
 src/gravityEffectorNode.cpp
 src/motionVisualizer.cpp
 src/motionVisualizerDrums.cpp
 src/motionVisualizerDrumsNode.cpp
+src/motionVisualizerDrumsRealsense.cpp
+src/motionVisualizerDrumsRealsenseNode.cpp
 src/motionVisualizerNode.cpp
 src/motionVisualizerDrumsOpenCV.cpp
 src/motionVisualizerDrumsOpenCVNode.cpp

@@ -32,7 +32,7 @@
 //#include <image_transport/image_transport.h>
 
 
-#include "simple_kinect_motion_visualizer/motionVisualizerDrumsOpenCV.hpp"
+#include "simple_kinect_motion_visualizer/motionVisualizerDrumsRealsense.hpp"
 
 using namespace std;
 //using namespace grid_map;
@@ -43,7 +43,7 @@ using namespace std;
 //using namespace kindr_ros;
 
 
-MotionVisualizerDrumsOpenCV::MotionVisualizerDrumsOpenCV(ros::NodeHandle& nodeHandle)
+MotionVisualizerDrumsRealsense::MotionVisualizerDrumsRealsense(ros::NodeHandle& nodeHandle)
     : nodeHandle_(nodeHandle)
 {
   ROS_INFO("Motion visualization node for Drum Machine started.");
@@ -59,13 +59,13 @@ MotionVisualizerDrumsOpenCV::MotionVisualizerDrumsOpenCV(ros::NodeHandle& nodeHa
   // Image transport
   //image_transport::ImageTransport it(nodeHandle_);
 
-  //inputImageSubscriber_ = it.subscribe(topic_name, 1, &MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback, this);
+  //inputImageSubscriber_ = it.subscribe(topic_name, 1, &MotionVisualizerDrumsRealsense::edgeDetectionImageCallback, this);
 
 
 
-  edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback, this);
+  edgeDetectionImageSubscriber_ = nodeHandle_.subscribe(topic_name, 1, &MotionVisualizerDrumsRealsense::edgeDetectionImageCallback, this);
 
-  depthImageSubscriber_ = nodeHandle_.subscribe("/camera/depth/image_raw", 1, &MotionVisualizerDrumsOpenCV::depthImageCallback, this);
+  depthImageSubscriber_ = nodeHandle_.subscribe("/camera/depth/image_raw", 1, &MotionVisualizerDrumsRealsense::depthImageCallback, this);
 
   // Helper subscriber for frequency test, may be obsolete soon.
   //cameraInfoSubscriber_ = nodeHandle_.subscribe("/camera/rgb/camera_info", 1, &MotionVisualizerDrums::cameraInfoCallback, this);
@@ -84,7 +84,7 @@ MotionVisualizerDrumsOpenCV::MotionVisualizerDrumsOpenCV(ros::NodeHandle& nodeHa
   distanceBasedThemeSwitchingPublisher_ = nodeHandle_.advertise<geometry_msgs::Pose2D>("/motion_visualizer/theme_switcher", 1);
   //std::cout << "after 1" << std::endl;
 
-  themeSwitcherAfterSixteenSubscriber_ = nodeHandle_.subscribe("/motion_visualizer/theme_switcher_after_sixteen", 1, &MotionVisualizerDrumsOpenCV::themeSwitcherAfterSixteenCallback, this);
+  themeSwitcherAfterSixteenSubscriber_ = nodeHandle_.subscribe("/motion_visualizer/theme_switcher_after_sixteen", 1, &MotionVisualizerDrumsRealsense::themeSwitcherAfterSixteenCallback, this);
 
 
   //cogPublisher_ = nodeHandle_.advertise<geometry_msgs::Twist>("cog_keyvalues", 5);
@@ -145,7 +145,7 @@ MotionVisualizerDrumsOpenCV::MotionVisualizerDrumsOpenCV(ros::NodeHandle& nodeHa
 }
 
 
-void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
+void MotionVisualizerDrumsRealsense::edgeDetectionImageCallback(
     const sensor_msgs::ImageConstPtr& imageEdgeDetection)
 {
   //ROS_INFO("Image encoding: %s", imageEdgeDetection.encoding.c_str());
@@ -828,7 +828,7 @@ void MotionVisualizerDrumsOpenCV::edgeDetectionImageCallback(
 //}
 
 
-void MotionVisualizerDrumsOpenCV::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
+void MotionVisualizerDrumsRealsense::drCallback(simple_kinect_motion_visualizer::VisualizationConfig &config, uint32_t level) {
 
   redHistorySize_ = config.redHistorySize;
   redGain_ = config.redGain;
@@ -909,7 +909,7 @@ void MotionVisualizerDrumsOpenCV::drCallback(simple_kinect_motion_visualizer::Vi
 //    MusicValuePublisherForLED_.publish(valuesForLED);
 //}
 
-void MotionVisualizerDrumsOpenCV::depthImageCallback(
+void MotionVisualizerDrumsRealsense::depthImageCallback(
     const sensor_msgs::ImageConstPtr& depthImage)
 {
 
@@ -950,13 +950,13 @@ void MotionVisualizerDrumsOpenCV::depthImageCallback(
 
 }
 
-void MotionVisualizerDrumsOpenCV::themeSwitcherAfterSixteenCallback(const geometry_msgs::Pose2D& themeSwitcherAfterSixteenMsg)
+void MotionVisualizerDrumsRealsense::themeSwitcherAfterSixteenCallback(const geometry_msgs::Pose2D& themeSwitcherAfterSixteenMsg)
 {
   if (themeSwitcherAfterSixteenMsg.x == 0.0 ) useTinyAdjustable_ = true;
   else useTinyAdjustable_ = false;
 }
 
-MotionVisualizerDrumsOpenCV::~MotionVisualizerDrumsOpenCV()
+MotionVisualizerDrumsRealsense::~MotionVisualizerDrumsRealsense()
 {
 
   //cout << "In destructor: " << this->lpfGainUp_ << endl;

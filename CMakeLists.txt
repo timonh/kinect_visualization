@@ -179,6 +179,7 @@ add_library(${PROJECT_NAME}_library
   src/gravityEffector.cpp
   src/motionVisualizerDrums.cpp
   src/motionVisualizerDrumsOpenCV.cpp
+  src/motionVisualizerDrumsRealsense.cpp
 )
 
 add_executable(
@@ -195,6 +196,10 @@ add_executable(
 
 add_executable(
   motionVisualizerDrumsOpenCVNode src/motionVisualizerDrumsOpenCVNode.cpp
+)
+
+add_executable(
+  motionVisualizerDrumsRealsenseNode src/motionVisualizerDrumsRealsenseNode.cpp
 )
 
 
@@ -252,6 +257,17 @@ target_link_libraries(motionVisualizerDrumsNode
 )
 
 target_link_libraries(motionVisualizerDrumsOpenCVNode
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBS}
+  ${PROJECT_NAME}_library
+  Qt5::Widgets
+  Qt5::Xml
+  Qt5::Core
+  Qt5::Gui
+  #image_transport
+)
+
+target_link_libraries(motionVisualizerDrumsRealsenseNode
   ${catkin_LIBRARIES}
   ${OpenCV_LIBS}
   ${PROJECT_NAME}_library
