@@ -29,7 +29,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 //#include "effects/builtin/filtereffect.h"
-//#include <image_transport/image_transport.h>
+#include <image_transport/image_transport.h>
+//#include <SFML/Graphics.hpp>
 
 
 #include "simple_kinect_motion_visualizer/motionVisualizerDrumsRealsense.hpp"
@@ -46,12 +47,20 @@ using namespace std;
 MotionVisualizerDrumsRealsense::MotionVisualizerDrumsRealsense(ros::NodeHandle& nodeHandle)
     : nodeHandle_(nodeHandle)
 {
+
+
+
+
   ROS_INFO("Motion visualization node for Drum Machine started.");
 
   std::string topic_name;
   topic_name = "/camera/color/image_raw";
+  //sf::RenderWindow window(sf::VideoMode(200, 200), "SFML works!");
 
   // Image transport
+  //cv3::namedWindow("view");
+  //cv::startWindowThread();
+  //image_transport::ImageTransport it(nh);
   //image_transport::ImageTransport it(nodeHandle_);
   //inputImageSubscriber_ = it.subscribe(topic_name, 1, &MotionVisualizerDrumsRealsense::edgeDetectionImageCallback, this);
 
@@ -137,6 +146,12 @@ MotionVisualizerDrumsRealsense::MotionVisualizerDrumsRealsense(ros::NodeHandle& 
 
   // Blocking Counter for depth recognition.
   blockingCounter_ = 0;
+
+  // Theme counter.
+  themeCounter_ = 0;
+
+  // no of themes (has to be > 1)
+  noOfThemes_ = 2;
 }
 
 void MotionVisualizerDrumsRealsense::inputImageCallbackFormatTest(
@@ -260,7 +275,7 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
 
     //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 222222" << std::endl;
 
-    if (useTinyAdjustable_)
+    if (themeCounter_ == 1)
     {
       // LEFT THIRD:
       if (pixelXAxis < widthSideStripes)
@@ -282,7 +297,7 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
       }
     }
 
-    else {
+    else if (themeCounter_ == 2 || themeCounter_ == 4) {
       // 6 Columns
       int fieldX = floor(pixelXAxis * 6.0) + 1;
       // 3 Rows
@@ -290,6 +305,15 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
 
       fieldNumber = (fieldY - 1) * 6 + fieldX;
       noField = false;
+    }
+    else if (themeCounter_ == 3) {
+        // 6 Columns
+        int fieldX = floor(pixelXAxis * 2.0) + 1;
+        // 3 Rows
+        int fieldY = floor(pixelYAxis * 2.0) + 1;
+
+        fieldNumber = (fieldY - 1) * 2.0 + fieldX;
+        noField = false;
     }
 
     //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 33333" << std::endl;
@@ -318,6 +342,8 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
 
     }
 
+    //std::cout << "TOTAL DIFFERENCE: " << totalDifference << std::endl;
+
     int musicIntensityTreshold = 50;
     if (totalDifference > musicIntensityTreshold) {
         totalDifferenceMusicValue += totalDifference;
@@ -338,56 +364,61 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
             else
             {
               if (!fast){
-                outputImages_[1].data[i] = fmin(255, redGain_ * totalDifference);
-                //if (totalDifference <= redIntensityThreshold_) outputImages_[1].data[4*i] = 0;
-                if (applyLPF_) {
 
-                if (outputImages_[1].data[4*i] <= lpfRedIntensityThreshold_ && outputImages_[0].data[4*i] <= lpfRedIntensityThreshold_) outputImages_[1].data[4*i] = 0;
-                else {
-                    if (fabs(outputImages_[1].data[4*i] - outputImages_[0].data[4*i]) <= lpfRedIntensityThreshold_) outputImages_[1].data[4*i] = outputImages_[0].data[4*i];
-                    else {
-                        // Red
-                        if (outputImages_[1].data[4*i] > outputImages_[0].data[4*i])
-                          outputImages_[1].data[4*i] = (1-redlpfGainUp_) * outputImages_[1].data[4*i] + redlpfGainUp_ * outputImages_[0].data[4*i];
-                        else
-                          outputImages_[1].data[4*i] = (1-redlpfGainDown_) * outputImages_[1].data[4*i] + redlpfGainDown_ * outputImages_[0].data[4*i];
-                    }
-                }
-                }
 
-                outputImages_[1].data[i+1] = fmin(255, greenGain_ * totalDifference);
-                //if (totalDifference <= greenIntensityThreshold_) outputImages_[1].data[4*i+1] = 0;
+                if (totalDifference <= redIntensityThreshold_) outputImages_[1].data[i] = 0;
+                else outputImages_[1].data[i] = fmin(255, redGain_ * totalDifference);
 
-                if (applyLPF_) {
-                if (outputImages_[1].data[4*i+1] <= lpfGreenIntensityThreshold_ && outputImages_[0].data[4*i+1] <= lpfGreenIntensityThreshold_) outputImages_[1].data[4*i+1] = 0;
-                else {
-                    if (fabs(outputImages_[1].data[4*i+1] - outputImages_[0].data[4*i+1]) <= lpfGreenIntensityThreshold_) outputImages_[1].data[4*i+1] = outputImages_[0].data[4*i+1];
-                    else {
-                        // Green
-                        if (outputImages_[1].data[4*i+1] > outputImages_[0].data[4*i+1])
-                          outputImages_[1].data[4*i+1] = (1-greenlpfGainUp_) * outputImages_[1].data[4*i+1] + greenlpfGainUp_ * outputImages_[0].data[4*i+1];
-                        else
-                          outputImages_[1].data[4*i+1] = (1-greenlpfGainDown_) * outputImages_[1].data[4*i+1] + greenlpfGainDown_ * outputImages_[0].data[4*i+1];
-                    }
-                }
-                }
+                //if (applyLPF_) {
 
-                outputImages_[1].data[i+2] = fmin(255, blueGain_ * totalDifference);
-                //if (totalDifference <= blueIntensityThreshold_) outputImages_[1].data[4*i+2] = 0;
+                //if (outputImages_[1].data[4*i] <= lpfRedIntensityThreshold_ && outputImages_[0].data[4*i] <= lpfRedIntensityThreshold_) outputImages_[1].data[4*i] = 0;
+                //else {
+                //    if (fabs(outputImages_[1].data[4*i] - outputImages_[0].data[4*i]) <= lpfRedIntensityThreshold_) outputImages_[1].data[4*i] = outputImages_[0].data[4*i];
+                //    else {
+                //        // Red
+                //        if (outputImages_[1].data[4*i] > outputImages_[0].data[4*i])
+                //          outputImages_[1].data[4*i] = (1-redlpfGainUp_) * outputImages_[1].data[4*i] + redlpfGainUp_ * outputImages_[0].data[4*i];
+                //        else
+                //          outputImages_[1].data[4*i] = (1-redlpfGainDown_) * outputImages_[1].data[4*i] + redlpfGainDown_ * outputImages_[0].data[4*i];
+                //    }
+                //}
+                //}
 
-                if (applyLPF_) {
-                if (outputImages_[1].data[4*i+2] <= lpfBlueIntensityThreshold_ && outputImages_[0].data[4*i+2] <= lpfBlueIntensityThreshold_) outputImages_[1].data[4*i+2] = 0;
-                else {
-                    if (fabs(outputImages_[1].data[4*i+2] - outputImages_[0].data[4*i+2]) <= lpfBlueIntensityThreshold_) outputImages_[1].data[4*i+2] = outputImages_[0].data[4*i+2];
-                    else {
-                        // Blue
-                        if (outputImages_[1].data[4*i+2] > outputImages_[0].data[4*i+2])
-                          outputImages_[1].data[4*i+2] = (1-bluelpfGainUp_) * outputImages_[1].data[4*i+2] + bluelpfGainUp_ * outputImages_[0].data[4*i+2];
-                        else
-                          outputImages_[1].data[4*i+2] = (1-bluelpfGainDown_) * outputImages_[1].data[4*i+2] + bluelpfGainDown_ * outputImages_[0].data[4*i+2];
-                    }
-                }
-                }
+                if (totalDifference <= greenIntensityThreshold_) outputImages_[1].data[i+1] = 0;
+                else outputImages_[1].data[i+1] = fmin(255, greenGain_ * totalDifference);
+
+
+                //if (applyLPF_) {
+                //if (outputImages_[1].data[4*i+1] <= lpfGreenIntensityThreshold_ && outputImages_[0].data[4*i+1] <= lpfGreenIntensityThreshold_) outputImages_[1].data[4*i+1] = 0;
+                //else {
+                //    if (fabs(outputImages_[1].data[4*i+1] - outputImages_[0].data[4*i+1]) <= lpfGreenIntensityThreshold_) outputImages_[1].data[4*i+1] = outputImages_[0].data[4*i+1];
+                //    else {
+                 //       // Green
+                 //       if (outputImages_[1].data[4*i+1] > outputImages_[0].data[4*i+1])
+                 //         outputImages_[1].data[4*i+1] = (1-greenlpfGainUp_) * outputImages_[1].data[4*i+1] + greenlpfGainUp_ * outputImages_[0].data[4*i+1];
+                 //       else
+                 //         outputImages_[1].data[4*i+1] = (1-greenlpfGainDown_) * outputImages_[1].data[4*i+1] + greenlpfGainDown_ * outputImages_[0].data[4*i+1];
+                 //   }
+                //}
+                //}
+
+                if (totalDifference <= blueIntensityThreshold_) outputImages_[1].data[i+2] = 0;
+                else outputImages_[1].data[i+2] = fmin(255, blueGain_ * totalDifference);
+
+
+                //if (applyLPF_) {
+                //if (outputImages_[1].data[4*i+2] <= lpfBlueIntensityThreshold_ && outputImages_[0].data[4*i+2] <= lpfBlueIntensityThreshold_) outputImages_[1].data[4*i+2] = 0;
+                //else {
+                //    if (fabs(outputImages_[1].data[4*i+2] - outputImages_[0].data[4*i+2]) <= lpfBlueIntensityThreshold_) outputImages_[1].data[4*i+2] = outputImages_[0].data[4*i+2];
+                //    else {
+                //        // Blue
+                //        if (outputImages_[1].data[4*i+2] > outputImages_[0].data[4*i+2])
+                //          outputImages_[1].data[4*i+2] = (1-bluelpfGainUp_) * outputImages_[1].data[4*i+2] + bluelpfGainUp_ * outputImages_[0].data[4*i+2];
+                //        else
+                //          outputImages_[1].data[4*i+2] = (1-bluelpfGainDown_) * outputImages_[1].data[4*i+2] + bluelpfGainDown_ * outputImages_[0].data[4*i+2];
+                //    }
+                //}
+                //}
               }
 
             }
@@ -401,7 +432,10 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
           //if ((fieldNumber-1) % 18 == 0) outputImages_[1].data[4*i+1] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
           //else if ((fieldNumber-1) % 17 == 0) outputImages_[1].data[4*i] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
           //else outputImages_[1].data[4*i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
-          outputImages_[1].data[i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+            if (themeCounter_ == 2 || themeCounter_ == 4) outputImages_[1].data[i+2] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+            else if (themeCounter_ == 1 || themeCounter_ == 3) outputImages_[1].data[i] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
+
+
         }
         //if (fieldNumber % 12 == 0) outputImages_[1].data[4*i+1] = max(min(colorizationIntensityArray_[fieldNumber-1], 255), 0);
 
@@ -962,8 +996,31 @@ void MotionVisualizerDrumsRealsense::depthImageCallback(
 
 void MotionVisualizerDrumsRealsense::themeSwitcherAfterSixteenCallback(const geometry_msgs::Pose2D& themeSwitcherAfterSixteenMsg)
 {
-  if (themeSwitcherAfterSixteenMsg.x == 0.0 ) useTinyAdjustable_ = true;
-  else useTinyAdjustable_ = false;
+  if (themeSwitcherAfterSixteenMsg.x == 0.0 && (themeCounter_ == 4 || themeCounter_ == 0)) {
+      useTinyAdjustable_ = true;
+      themeCounter_ = 1;
+  }
+  else if (themeSwitcherAfterSixteenMsg.x == 1.0 && themeCounter_ == 1) {
+      useTinyAdjustable_ = false;
+      themeCounter_ = 2;
+  }
+  else if (themeSwitcherAfterSixteenMsg.x == 0.0 && themeCounter_ == 2) {
+      useTinyAdjustable_ = true;
+      themeCounter_ = 3;
+  }
+  else if (themeSwitcherAfterSixteenMsg.x == 1.0 && themeCounter_ == 3) {
+      useTinyAdjustable_ = false;
+      themeCounter_ = 4;
+
+  }
+  //if (themeCounter_ < noOfThemes_) themeCounter_++;
+  //else themeCounter_ = 1;
+
+  // TODO use second tinyadjustable
+  // use second normal drums as field distribution options.
+  //
+
+  std::cout << "THEME NOMBER RIGHT NOW: " << themeCounter_ << std::endl;
 }
 
 MotionVisualizerDrumsRealsense::~MotionVisualizerDrumsRealsense()

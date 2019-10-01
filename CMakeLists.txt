@@ -6,6 +6,10 @@ add_compile_options(-std=c++11)
 
 set(catkin_DIR "/opt/ros/kinetic/share/catkin/cmake")
 
+#set(SFML_STATIC_LIBRARIES TRUE)
+#set(SFML_DIR " /home/timon/flower_ws/devel:/home/timon/catkin_ws/devel:/opt/ros/kinetic:/home/timon/sfml/lib/cmake/SFML")
+#set (CMAKE_PREFIX_PATH "~/sfml/lib/cmake/SFML")
+find_package(SFML 2.5 COMPONENTS graphics audio REQUIRED)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -17,7 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   dynamic_reconfigure
   cv_bridge
-  #image_transport
+  image_transport
 )
 
 find_package(Qt5Widgets)
@@ -26,6 +30,8 @@ find_package(Qt5Xml)
 find_package(Qt5Gui)
 
 find_package(OpenCV)
+
+#find_package(image_transport)
 
 generate_dynamic_reconfigure_options(
   cfg/visualization_config.cfg
@@ -128,7 +134,7 @@ generate_dynamic_reconfigure_options(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include ${OpenCV_INCLUDE_DIRS}
+  INCLUDE_DIRS include ${OpenCV_INCLUDE_DIRS} ${SFML_INCLUDE_DIR}
   #../../../Mixxx/mixxx/src ../../../Mixxx/mixxx ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
  # ../../../../../../usr/include/x86_64-linux-gnu/qt5 ../../../Mixxx/mixxx
  # ../../../Mixxx/mixxx/lin64_build/src ../../../Mixxx/mixxx/lin64_build
@@ -138,7 +144,7 @@ catkin_package(
  # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtWidgets
  # ../../../Mixxx/mixxx/lib/fidlib
   LIBRARIES simple_kinect_motion_visualizer
-  CATKIN_DEPENDS roscpp rospy std_msgs dynamic_reconfigure cv_bridge
+  CATKIN_DEPENDS roscpp rospy std_msgs dynamic_reconfigure cv_bridge image_transport
 # DEPENDS system_lib
 )
 
@@ -156,6 +162,7 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${SFML_INCLUDE_DIRS}
  # ../../../Mixxx/mixxx/src
  # ../../../Mixxx/mixxx
  # ../../../../../../usr/include/x86_64-linux-gnu/qt5/QtCore
@@ -269,12 +276,16 @@ target_link_libraries(motionVisualizerDrumsOpenCVNode
 
 target_link_libraries(motionVisualizerDrumsRealsenseNode
   ${catkin_LIBRARIES}
-  ${OpenCV_LIBS}
+  #${OpenCV_LIBS}
   ${PROJECT_NAME}_library
   Qt5::Widgets
   Qt5::Xml
   Qt5::Core
   Qt5::Gui
+  sfml-graphics
+  sfml-audio
+  ${SFML_DEPENDENCIES}
+  ${SFML_LIBRARIES}
   #image_transport
 )
 

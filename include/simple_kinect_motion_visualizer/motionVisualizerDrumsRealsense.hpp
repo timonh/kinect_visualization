@@ -21,8 +21,11 @@
 #include <sensor_msgs/image_encodings.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+//#include <SFML/Graphics.hpp>
 
-//#include <image_transport/image_transport.h>
+
+
+#include <image_transport/image_transport.h>
 
 //#include <effects/builtin/filtereffect.h>
 
@@ -126,6 +129,10 @@ class MotionVisualizerDrumsRealsense
 
   // Bool for preliminary field pattern distribution.
   bool useTinyAdjustable_;
+
+  // themeCounter:
+  int themeCounter_;
+  int noOfThemes_;
 
 
 
