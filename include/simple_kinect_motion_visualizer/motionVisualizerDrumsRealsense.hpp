@@ -116,6 +116,7 @@ class MotionVisualizerDrumsRealsense
   bool drumActivationInFieldsArray_[162];
   bool drumActivationInFieldsArrayOld_[162];
   int colorizationIntensityArray_[162];
+  double approximateSampleLengthArray_[162];
 
   // Timing for Drum triggereing tests.
   double newDrumTriggerTime_;

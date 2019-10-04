@@ -234,9 +234,9 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
   // For center of gravity calculation.
 
   // TODO: Check if these are deprecated.
-  int accumulatedTotalDifference = 0;
-  double accumulatedTotalDifferenceTimesXAxis = 0.0;
-  double accumulatedTotalDifferenceTimesYAxis = 0.0;
+  //int accumulatedTotalDifference = 0;
+  //double accumulatedTotalDifferenceTimesXAxis = 0.0;
+  //double accumulatedTotalDifferenceTimesYAxis = 0.0;
 
 
   // Vector of Difference Values for each field.
@@ -351,6 +351,8 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
         if (pixelXAxis >= 0.5) totalDifferenceMusicValueRight += totalDifference;
         if (!noField) differenceValueInFieldsArray[fieldNumber-1] += totalDifference;
     }
+
+
 
     // Low pass filtering step.
     if (lpfTrigger_) {
@@ -477,8 +479,14 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
   //std::cout << "BIS HIN BIN ICH NOCH EASY GEKOMMEN 2" << std::endl;
   // Fade out coloring intensity.
 
+  double velAdjustment = 1.0; // Check if result is loud for a small instant.
 
-
+  if (themeCounter_ == 3) {
+      std::cout << "differenceValueInFieldsArray Zero: " << differenceValueInFieldsArray[0] << std::endl;
+      for (unsigned int k = 0; k < 4; k++) {
+          velAdjustment = fmax(fmin(differenceValueInFieldsArray[k], 1.0), 0.0);
+      }
+  }
   //! TODO: Add nan check!
 
   // Center of Gravity Calculation:
@@ -542,6 +550,10 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
   //std::cout << "BIS HIER HIN BIN ICH NOCH EASY GEKOMMEN 3 size of output images list: " << outputImages_.size() << std::endl;
   if (outputImages_.size() > 1) {
     //std::cout << "before 3" << std::endl;
+    cv_bridge::CvImageConstPtr cv_ptr;
+    const sensor_msgs::Image inImage = outputImages_[1];
+    const std::string enco = "CV_8UC3";
+    cv_ptr = cv_bridge::toCvCopy(inImage, );
     coloredImagePublisher_.publish(outputImages_[1]);
     //std::cout << "after 3" << std::endl;
   }
@@ -702,7 +714,8 @@ void MotionVisualizerDrumsRealsense::inputImageCallback(
               drumMsg.x = floor((double)k/(144.0/90.0)) + 18;
               drumMsg.theta = 1.0;
           }
-          drumMsg.y = 0.0;
+
+          drumMsg.y = velAdjustment;
 
 
           //std::cout << "before 2" << std::endl;
@@ -985,7 +998,6 @@ void MotionVisualizerDrumsRealsense::depthImageCallback(
     geometry_msgs::Pose2D switcherMsg;
     switcherMsg.x = meanDistance;
     distanceBasedThemeSwitchingPublisher_.publish(switcherMsg);
-
   }
 
   oldMeanDistance_ = meanDistance;
